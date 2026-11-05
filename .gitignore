@@ -1,0 +1,5 @@
+target/
+.ref/
+shaders/*.qsb
+.shots/
+qml/i18n/*.qm

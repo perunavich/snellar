@@ -1,0 +1,13 @@
+Third-party software in the Snellar AppImage
+
+usr/lib/mpv/mpv is mpv, GPL-2.0-or-later, built with -Dgpl=true and statically linked with FFmpeg, libplacebo, libass, FreeType, FriBidi, HarfBuzz, Lua, Mbed TLS and zlib. FFmpeg is configured with --enable-version3, because Mbed TLS is Apache-2.0, so that FFmpeg build is LGPL-3.0-or-later and the mpv binary as a whole is distributed under GPL-3.0-or-later. usr/lib/mpv also holds alsa-lib, libpulse, libsndfile and PipeWire client libraries as shared libraries. The scripts tools/mpv-build.sh and tools/appimage.sh in the Snellar repository build all of this from the sources listed below, with no changes to them.
+
+usr/lib/lib* and usr/lib/qt6 are Qt, LGPL-3.0-only, unmodified official binaries with their ICU, loaded dynamically, plus the libraries listed at the end of this file.
+
+The AppImage runtime at the start of this file is type2-runtime (MIT), statically linked with libfuse (LGPL-2.1) and squashfuse (BSD-2-Clause), https://github.com/AppImage/type2-runtime.
+
+The fonts Commissioner and Martian Mono are SIL OFL 1.1, embedded in the snellar binary.
+
+Licence texts are in the components folder next to this file.
+
+To get the corresponding source, use the URLs and SHA-256 sums below. Each Snellar release also attaches a copy of these source archives.

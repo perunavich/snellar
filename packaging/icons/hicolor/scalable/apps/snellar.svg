@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sheer app icon: a vertical line that slips sideways where it crosses a pale green disc of glass">
+<rect width="512" height="512" rx="116" fill="#0E1214"/>
+<rect x="5" y="5" width="502" height="502" rx="111" fill="none" stroke="#8FE6C8" stroke-opacity=".45" stroke-width="10"/>
+<circle cx="256" cy="256" r="150" fill="#8FE6C8"/>
+<rect x="256" y="90" width="52" height="332" fill="#0E1214"/>
+<rect x="204" y="52" width="52" height="54" fill="#EEF1EE"/>
+<rect x="204" y="406" width="52" height="54" fill="#EEF1EE"/>
+</svg>

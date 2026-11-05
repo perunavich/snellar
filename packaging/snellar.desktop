@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Snellar
+GenericName=Music Player
+GenericName[ru]=Музыкальный плеер
+GenericName[uk]=Музичний плеєр
+Comment=Music player
+Comment[ru]=Музыкальный плеер
+Comment[uk]=Музичний плеєр
+Exec=snellar
+Icon=snellar
+Terminal=false
+Categories=AudioVideo;Audio;Player;
+Keywords=music;player;youtube;
+Keywords[ru]=музыка;плеер;youtube;
+Keywords[uk]=музика;плеєр;youtube;
+StartupWMClass=snellar
