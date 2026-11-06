@@ -64,73 +64,73 @@
 <context>
     <name>Api</name>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Video</source>
         <translation>Відео</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Song</source>
         <translation>Пісня</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Album</source>
         <translation>Альбом</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Artist</source>
         <translation>Виконавець</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Playlist</source>
         <translation>Плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="217"/>
+        <location filename="../qml/Api.qml" line="238"/>
         <source>Added to %1</source>
         <translation>Додано до «%1»</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="217"/>
+        <location filename="../qml/Api.qml" line="238"/>
         <source>Already in %1</source>
         <translation>Вже в «%1»</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="245"/>
+        <location filename="../qml/Api.qml" line="298"/>
         <source>Link copied</source>
         <translation>Посилання скопійовано</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="254"/>
+        <location filename="../qml/Api.qml" line="307"/>
         <source>Deleted %1</source>
         <translation>«%1» видалено</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="254"/>
-        <location filename="../qml/Api.qml" line="272"/>
+        <location filename="../qml/Api.qml" line="307"/>
+        <location filename="../qml/Api.qml" line="325"/>
         <source>Undo</source>
         <translation>Скасувати</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="272"/>
+        <location filename="../qml/Api.qml" line="325"/>
         <source>Disliked. Recommendations will avoid it</source>
         <translation>Позначено. Рекомендації його оминатимуть</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="319"/>
+        <location filename="../qml/Api.qml" line="373"/>
         <source>Continue %1 in Snellar?</source>
         <translation>Продовжити %1 у Snellar?</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="320"/>
+        <location filename="../qml/Api.qml" line="374"/>
         <source>Continue</source>
         <translation>Продовжити</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="320"/>
+        <location filename="../qml/Api.qml" line="374"/>
         <source>Not now</source>
         <translation>Не зараз</translation>
     </message>
@@ -214,41 +214,38 @@
     </message>
 </context>
 <context>
-    <name>AudioSheet</name>
+    <name>AudioPanel</name>
     <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="62"/>
-        <source>Audio</source>
-        <translation>Звук</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="67"/>
-        <source>On</source>
-        <translation>Увімк.</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="67"/>
-        <source>Off</source>
-        <translation>Вимк.</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="69"/>
-        <source>Close</source>
-        <translation>Закрити</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="78"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="101"/>
         <source>Equalizer</source>
         <translation>Еквалайзер</translation>
     </message>
     <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="78"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="101"/>
         <source>Effects</source>
         <translation>Ефекти</translation>
     </message>
     <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="95"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="109"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="158"/>
         <source>Reset</source>
         <translation>Скинути</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/AudioPanel.qml" line="118"/>
+        <source>Enabled</source>
+        <comment>equalizer and effects switch</comment>
+        <translation>Увімкнено</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/AudioPanel.qml" line="156"/>
+        <source>Reset the equalizer and effects?</source>
+        <translation>Скинути еквалайзер і ефекти?</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/AudioPanel.qml" line="157"/>
+        <source>Every band and effect goes back to its default.</source>
+        <translation>Усі смуги й ефекти повернуться до початкових значень.</translation>
     </message>
 </context>
 <context>
@@ -486,40 +483,42 @@
 <context>
     <name>Discover</name>
     <message>
-        <location filename="../qml/views/Discover.qml" line="41"/>
+        <location filename="../qml/views/Discover.qml" line="42"/>
         <source>Home</source>
         <translation>Головна</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="50"/>
+        <location filename="../qml/views/Discover.qml" line="51"/>
         <source>Refresh</source>
         <translation>Оновити</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="98"/>
+        <location filename="../qml/views/Discover.qml" line="134"/>
         <source>Wave</source>
         <translation>Хвиля</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="99"/>
+        <location filename="../qml/views/Discover.qml" line="135"/>
         <source>Up next, picked for you</source>
         <translation>Далі — добірка для вас</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="106"/>
+        <location filename="../qml/views/Discover.qml" line="142"/>
         <source>New mix</source>
         <translation>Нова добірка</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="154"/>
+        <location filename="../qml/views/Discover.qml" line="190"/>
         <source>Jump back in</source>
         <translation>Продовжити слухати</translation>
     </message>
     <message>
+        <location filename="../qml/views/Discover.qml" line="82"/>
         <source>Try again</source>
         <translation>Повторити</translation>
     </message>
     <message>
+        <location filename="../qml/views/Discover.qml" line="93"/>
         <source>Nothing to show yet. Refresh, or search for something to play.</source>
         <translation>Поки нема чого показати. Оновіть або знайдіть щось через пошук.</translation>
     </message>
@@ -645,70 +644,89 @@
         <translation>Прибрати з черги</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="183"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="186"/>
         <source>Download</source>
         <translation>Завантажити</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="189"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="194"/>
         <source>Go to album</source>
         <translation>Перейти до альбому</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="196"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="201"/>
         <source>Go to artist</source>
         <translation>Перейти до виконавця</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="204"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="209"/>
         <source>Copy link</source>
         <translation>Копіювати посилання</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="210"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="215"/>
         <source>Rename</source>
         <translation>Перейменувати</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="216"/>
-        <source>Delete</source>
-        <translation>Видалити</translation>
+        <location filename="../qml/parts/EntityMenu.qml" line="186"/>
+        <source>Downloading</source>
+        <translation>Завантажується</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/EntityMenu.qml" line="186"/>
+        <source>Downloaded</source>
+        <translation>Завантажено</translation>
+    </message>
+</context>
+<context>
+    <name>EqBand</name>
+    <message>
+        <location filename="../qml/parts/EqBand.qml" line="62"/>
+        <source>%1 dB</source>
+        <translation>%1 дБ</translation>
     </message>
 </context>
 <context>
     <name>EqPane</name>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="12"/>
+        <location filename="../qml/parts/EqPane.qml" line="13"/>
         <source>Flat</source>
         <translation>Рівний</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="13"/>
+        <location filename="../qml/parts/EqPane.qml" line="14"/>
         <source>Bass boost</source>
         <translation>Посилення басів</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="14"/>
+        <location filename="../qml/parts/EqPane.qml" line="15"/>
         <source>Vocal</source>
         <translation>Вокал</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="15"/>
+        <location filename="../qml/parts/EqPane.qml" line="16"/>
         <source>Treble</source>
         <translation>Високі</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="16"/>
+        <location filename="../qml/parts/EqPane.qml" line="17"/>
         <source>Loudness</source>
         <translation>Тонкомпенсація</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="17"/>
+        <location filename="../qml/parts/EqPane.qml" line="18"/>
         <source>Electronic</source>
         <translation>Електроніка</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="54"/>
+        <location filename="../qml/parts/EqPane.qml" line="42"/>
+        <location filename="../qml/parts/EqPane.qml" line="74"/>
+        <source>Custom</source>
+        <translation>Свій</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/EqPane.qml" line="123"/>
         <source>Pre</source>
         <translation>Пре</translation>
     </message>
@@ -716,40 +734,33 @@
 <context>
     <name>ErrorState</name>
     <message>
-        <location filename="../qml/parts/ErrorState.qml" line="20"/>
-        <source>You are offline</source>
-        <translation>Немає з’єднання з мережею</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/ErrorState.qml" line="30"/>
+        <location filename="../qml/parts/ErrorState.qml" line="31"/>
         <source>Snellar will try again when the connection is back</source>
         <translation>Snellar спробує знову, коли зв’язок повернеться</translation>
     </message>
     <message>
-        <location filename="../qml/parts/ErrorState.qml" line="36"/>
+        <location filename="../qml/parts/ErrorState.qml" line="37"/>
         <source>Try again</source>
         <translation>Повторити</translation>
     </message>
     <message>
+        <location filename="../qml/parts/ErrorState.qml" line="21"/>
         <source>Still waiting for an answer</source>
         <translation>Досі чекаємо на відповідь</translation>
     </message>
     <message>
+        <location filename="../qml/parts/ErrorState.qml" line="31"/>
         <source>Snellar will try again soon</source>
         <translation>Snellar незабаром спробує знову</translation>
     </message>
     <message>
+        <location filename="../qml/parts/ErrorState.qml" line="37"/>
         <source>Cancel</source>
         <translation>Скасувати</translation>
     </message>
 </context>
 <context>
     <name>Errors</name>
-    <message>
-        <location filename="../qml/Errors.qml" line="7"/>
-        <source>No connection. Check your network.</source>
-        <translation>Немає з’єднання. Перевірте мережу.</translation>
-    </message>
     <message>
         <location filename="../qml/Errors.qml" line="11"/>
         <source>The service took too long to answer</source>
@@ -761,199 +772,184 @@
         <translation>Сервіс відхилив запит</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="14"/>
-        <source>Too many requests, try again in a minute</source>
-        <translation>Забагато запитів, спробуйте за хвилину</translation>
-    </message>
-    <message>
-        <location filename="../qml/Errors.qml" line="15"/>
-        <source>The service is having problems, try again later</source>
-        <translation>Сервіс має проблеми, спробуйте пізніше</translation>
-    </message>
-    <message>
-        <location filename="../qml/Errors.qml" line="16"/>
+        <location filename="../qml/Errors.qml" line="22"/>
         <source>YouTube answered in an unexpected way</source>
         <translation>YouTube відповів у неочікуваному вигляді</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="17"/>
+        <location filename="../qml/Errors.qml" line="23"/>
         <source>This track is not available</source>
         <translation>Цей трек недоступний</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="18"/>
+        <location filename="../qml/Errors.qml" line="24"/>
         <source>yt-dlp is not installed</source>
         <translation>yt-dlp не встановлено</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="19"/>
+        <location filename="../qml/Errors.qml" line="25"/>
         <source>yt-dlp could not get the track</source>
         <translation>yt-dlp не зміг отримати трек</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="22"/>
+        <location filename="../qml/Errors.qml" line="28"/>
         <source>GNOME could not set up glass. Nothing else changed.</source>
         <translation>GNOME не зміг налаштувати скло. Більше нічого не змінилося.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="23"/>
+        <location filename="../qml/Errors.qml" line="29"/>
         <source>Blur my Shell was not installed, so nothing changed</source>
         <translation>Blur my Shell не встановлено, тому нічого не змінилося</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="24"/>
+        <location filename="../qml/Errors.qml" line="30"/>
         <source>GNOME could not put the settings back. You can remove Blur my Shell from the Extensions app.</source>
         <translation>GNOME не зміг повернути налаштування. Blur my Shell можна видалити в застосунку «Розширення».</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="25"/>
+        <location filename="../qml/Errors.qml" line="31"/>
         <source>The downloaded yt-dlp failed its checksum, so it was not installed</source>
         <translation>Завантажений yt-dlp не пройшов перевірку суми, тому не встановлений</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="26"/>
+        <location filename="../qml/Errors.qml" line="32"/>
         <source>Downloads need yt-dlp and Snellar could not get it. Check your connection and try again. Playing music is not affected.</source>
         <translation>Для завантажень потрібен yt-dlp, а Snellar не зміг його отримати. Перевірте з’єднання і спробуйте ще раз. На відтворення музики це не впливає.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="27"/>
+        <location filename="../qml/Errors.qml" line="33"/>
         <source>The library is busy in another program</source>
         <translation>Бібліотека зайнята іншою програмою</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="28"/>
+        <location filename="../qml/Errors.qml" line="34"/>
         <source>The library was saved by a newer Snellar</source>
         <translation>Бібліотеку збережено новішою версією Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="29"/>
+        <location filename="../qml/Errors.qml" line="41"/>
         <source>The library cannot be read or written</source>
         <translation>Бібліотеку не вдається прочитати чи записати</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="30"/>
+        <location filename="../qml/Errors.qml" line="42"/>
         <source>The audio player (mpv) failed</source>
         <translation>Аудіоплеєр (mpv) дав збій</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="31"/>
+        <location filename="../qml/Errors.qml" line="43"/>
         <source>Invalid request</source>
         <translation>Неправильний запит</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="32"/>
+        <location filename="../qml/Errors.qml" line="44"/>
         <source>Unknown request</source>
         <translation>Невідомий запит</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="33"/>
+        <location filename="../qml/Errors.qml" line="45"/>
         <source>It is no longer there</source>
         <translation>Цього вже немає</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="35"/>
+        <location filename="../qml/Errors.qml" line="47"/>
         <source>This source cannot do that</source>
         <translation>Це джерело так не вміє</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="36"/>
+        <location filename="../qml/Errors.qml" line="48"/>
         <source>Audio effects were reset</source>
         <translation>Аудіоефекти скинуто</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="37"/>
+        <location filename="../qml/Errors.qml" line="49"/>
         <source>mpv stopped, it will restart on the next play</source>
         <translation>mpv зупинився і перезапуститься під час наступного відтворення</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="38"/>
+        <location filename="../qml/Errors.qml" line="50"/>
         <source>This image cannot be a cover: use a PNG, JPEG or WebP file up to 20 MB</source>
         <translation>Це зображення не підходить для обкладинки: потрібен файл PNG, JPEG або WebP до 20 МБ</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="39"/>
+        <location filename="../qml/Errors.qml" line="51"/>
         <source>The service does not show this playlist without signing in: it may be private. Export it to a CSV file with Exportify (Spotify) or TuneMyMusic (any service) and choose that file here.</source>
         <translation>Сервіс не показує цей плейлист без входу: можливо, він закритий. Вивантажте його в CSV-файл через Exportify (Spotify) або TuneMyMusic (будь-який сервіс) і виберіть цей файл тут.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="40"/>
+        <location filename="../qml/Errors.qml" line="52"/>
         <source>Snellar could not read the songs on this page. Export the playlist to a CSV file with Exportify (Spotify) or TuneMyMusic (any service) and choose that file here.</source>
         <translation>Snellar не зміг прочитати пісні на цій сторінці. Вивантажте плейлист у CSV-файл через Exportify (Spotify) або TuneMyMusic (будь-який сервіс) і виберіть цей файл тут.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="41"/>
+        <location filename="../qml/Errors.qml" line="53"/>
         <source>This is not a playlist or album link from Spotify, Deezer, Apple Music, Yandex Music or SoundCloud</source>
         <translation>Це не посилання на плейлист чи альбом Spotify, Deezer, Apple Music, Яндекс Музики або SoundCloud</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="42"/>
+        <location filename="../qml/Errors.qml" line="54"/>
         <source>This CSV file has no column with track names. Export it again with Exportify or TuneMyMusic.</source>
         <translation>У цьому CSV-файлі немає стовпця з назвами треків. Вивантажте його знову через Exportify або TuneMyMusic.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="43"/>
+        <location filename="../qml/Errors.qml" line="55"/>
         <source>There are no songs in it</source>
         <translation>У ньому немає пісень</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="44"/>
+        <location filename="../qml/Errors.qml" line="56"/>
         <source>GNOME could not add tray support. You can install AppIndicator support from the Extensions app.</source>
         <translation>GNOME не зміг додати трей. Підтримку AppIndicator можна встановити через застосунок «Розширення».</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="45"/>
+        <location filename="../qml/Errors.qml" line="57"/>
         <source>This file cannot be read: choose a CSV text file up to 5 MB</source>
         <translation>Цей файл не читається: виберіть текстовий CSV-файл до 5 МБ</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="46"/>
+        <location filename="../qml/Errors.qml" line="58"/>
         <source>Import cancelled</source>
         <translation>Імпорт скасовано</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="48"/>
+        <location filename="../qml/Errors.qml" line="60"/>
         <source>Something went wrong</source>
         <translation>Щось пішло не так</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="55"/>
+        <location filename="../qml/Errors.qml" line="67"/>
         <source>Cannot play: %1</source>
         <translation>Не вдається відтворити: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="56"/>
+        <location filename="../qml/Errors.qml" line="68"/>
         <source>Autoplay stopped: %1</source>
         <translation>Автовідтворення зупинено: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="57"/>
+        <location filename="../qml/Errors.qml" line="69"/>
         <source>The library cannot be opened, changes will not be saved: %1</source>
         <translation>Бібліотеку не вдається відкрити, зміни не збережуться: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="58"/>
+        <location filename="../qml/Errors.qml" line="70"/>
         <source>Getting yt-dlp: %1%</source>
         <translation>Отримуємо yt-dlp: %1%</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="59"/>
+        <location filename="../qml/Errors.qml" line="71"/>
         <source>Could not get yt-dlp: %1</source>
         <translation>Не вдалося отримати yt-dlp: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="60"/>
+        <location filename="../qml/Errors.qml" line="72"/>
         <source>Downloaded %1</source>
         <translation>Завантажено: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="61"/>
+        <location filename="../qml/Errors.qml" line="73"/>
         <source>Download of %1 failed: %2</source>
         <translation>Не вдалося завантажити %1: %2</translation>
-    </message>
-    <message>
-        <location filename="../qml/Errors.qml" line="8"/>
-        <source>Cannot find the service&apos;s address. You may be offline, or your DNS blocks it.</source>
-        <translation>Не вдається знайти адресу сервісу. Можливо, немає мережі або DNS її блокує.</translation>
     </message>
     <message>
         <location filename="../qml/Errors.qml" line="9"/>
@@ -971,80 +967,119 @@
         <translation>Сервіс відхиляє запити з вашої мережі. Може допомогти проксі: Налаштування, Підключення.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="20"/>
+        <location filename="../qml/Errors.qml" line="26"/>
         <source>yt-dlp is ready</source>
         <translation>yt-dlp готовий</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="21"/>
+        <location filename="../qml/Errors.qml" line="27"/>
         <source>yt-dlp is up to date</source>
         <translation>yt-dlp не потребує оновлення</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="47"/>
+        <location filename="../qml/Errors.qml" line="59"/>
         <source>This is not a proxy address. Use http://host:port</source>
         <translation>Це не адреса проксі. Вкажіть http://хост:порт</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="34"/>
+        <location filename="../qml/Errors.qml" line="46"/>
         <source>Only the window can do this</source>
         <translation>Це можна зробити лише у вікні</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="8"/>
         <source>Cannot reach the internet. Check your network or DNS.</source>
         <translation>Немає виходу в інтернет. Перевірте мережу або DNS.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="14"/>
         <source>Too many requests to the service. Wait a moment and try again.</source>
         <translation>Забагато запитів до сервісу. Зачекайте трохи й спробуйте знову.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="15"/>
         <source>The service is having problems. Try again in a while.</source>
         <translation>У сервісу неполадки. Спробуйте трохи згодом.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="16"/>
         <source>The proxy asks for a login. Add it to the proxy address: Settings, Connections.</source>
         <translation>Проксі просить логін і пароль. Додайте їх до адреси проксі: Налаштування, Підключення.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="17"/>
         <source>The proxy could not open the connection to the service. Check the proxy or turn it off: Settings, Connections.</source>
         <translation>Проксі не зміг відкрити з&apos;єднання із сервісом. Перевірте проксі або вимкніть його: Налаштування, Підключення.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="18"/>
         <source>The proxy does not answer. Check that it is running, or turn it off: Settings, Connections.</source>
         <translation>Проксі не відповідає. Перевірте, чи він запущений, або вимкніть його: Налаштування, Підключення.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="19"/>
         <source>No answer came through the proxy in time. Check the proxy or turn it off: Settings, Connections.</source>
         <translation>Через проксі вчасно не надійшла відповідь. Перевірте проксі або вимкніть його: Налаштування, Підключення.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="20"/>
         <source>The service refuses requests coming through your proxy. Try another proxy or turn it off: Settings, Connections.</source>
         <translation>Сервіс відхиляє запити через ваш проксі. Спробуйте інший проксі або вимкніть його: Налаштування, Підключення.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="21"/>
         <source>Stopped waiting</source>
         <translation>Очікування зупинено</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="40"/>
         <source>The library file is damaged</source>
         <translation>Файл бібліотеки пошкоджено</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="88"/>
         <source>Snellar did not change the file. Restore it from a backup or move it away, then try again.</source>
         <translation>Snellar не змінював файл. Відновіть його з резервної копії або перемістіть в інше місце та спробуйте знову.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="89"/>
         <source>Close the other program. Snellar opens the library by itself once it is free.</source>
         <translation>Закрийте іншу програму. Snellar відкриє бібліотеку сам, щойно вона звільниться.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="90"/>
         <source>Snellar did not change the file. Update Snellar to open it.</source>
         <translation>Snellar не змінював файл. Оновіть Snellar, щоб відкрити його.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="91"/>
         <source>Snellar did not change the file. Check the disk and the folder&apos;s permissions, then try again.</source>
         <translation>Snellar не змінював файл. Перевірте диск і права на теку та спробуйте знову.</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="35"/>
+        <source>The latest release has no version Snellar can read</source>
+        <translation>В останньому випуску немає версії, яку Snellar може прочитати</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="36"/>
+        <source>The download failed its checksum</source>
+        <translation>Завантаження не пройшло перевірку контрольної суми</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="37"/>
+        <source>The download does not unpack</source>
+        <translation>Завантаження не розпаковується</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="38"/>
+        <source>Snellar cannot write to the folder it is installed in</source>
+        <translation>Snellar не може писати в теку, де він встановлений</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="39"/>
+        <source>The new version is not signed by Snellar&apos;s key</source>
+        <translation>Нова версія не підписана ключем Snellar</translation>
     </message>
 </context>
 <context>
@@ -1076,42 +1111,42 @@
 <context>
     <name>FxPane</name>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="14"/>
+        <location filename="../qml/parts/FxPane.qml" line="13"/>
         <source>Bass</source>
         <translation>Баси</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="18"/>
-        <source> dB</source>
-        <translation> дБ</translation>
+        <location filename="../qml/parts/FxPane.qml" line="10"/>
+        <source>%1 dB</source>
+        <translation>%1 дБ</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="24"/>
+        <location filename="../qml/parts/FxPane.qml" line="14"/>
         <source>Speed</source>
         <translation>Швидкість</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="32"/>
+        <location filename="../qml/parts/FxPane.qml" line="15"/>
         <source>Keep pitch</source>
         <translation>Зберігати висоту тону</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="35"/>
+        <location filename="../qml/parts/FxPane.qml" line="16"/>
         <source>Reverb</source>
         <translation>Реверберація</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="42"/>
+        <location filename="../qml/parts/FxPane.qml" line="17"/>
         <source>Echo</source>
         <translation>Ехо</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="49"/>
+        <location filename="../qml/parts/FxPane.qml" line="18"/>
         <source>Stereo width</source>
         <translation>Стереобаза</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="56"/>
+        <location filename="../qml/parts/FxPane.qml" line="19"/>
         <source>Normalize volume</source>
         <translation>Вирівнювати гучність</translation>
     </message>
@@ -1334,6 +1369,29 @@
     </message>
 </context>
 <context>
+    <name>LibraryGate</name>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="49"/>
+        <source>Try again</source>
+        <translation>Повторити</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="50"/>
+        <source>Open folder</source>
+        <translation>Відкрити теку</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="57"/>
+        <source>Continue without saving</source>
+        <translation>Продовжити без збереження</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="67"/>
+        <source>Nothing you do in this session will be kept, and your library is not shown.</source>
+        <translation>Усе, що ви зробите в цьому сеансі, не збережеться, а вашу бібліотеку не буде показано.</translation>
+    </message>
+</context>
+<context>
     <name>ListTools</name>
     <message>
         <location filename="../qml/parts/ListTools.qml" line="17"/>
@@ -1352,226 +1410,228 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="171"/>
-        <location filename="../qml/Main.qml" line="330"/>
+        <location filename="../qml/Main.qml" line="198"/>
+        <location filename="../qml/Main.qml" line="431"/>
         <source>Back</source>
         <translation>Назад</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="178"/>
-        <location filename="../qml/Main.qml" line="331"/>
+        <location filename="../qml/Main.qml" line="205"/>
+        <location filename="../qml/Main.qml" line="432"/>
         <source>Forward</source>
         <translation>Уперед</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="317"/>
-        <location filename="../qml/Main.qml" line="318"/>
-        <location filename="../qml/Main.qml" line="319"/>
-        <location filename="../qml/Main.qml" line="320"/>
-        <location filename="../qml/Main.qml" line="321"/>
-        <location filename="../qml/Main.qml" line="322"/>
-        <location filename="../qml/Main.qml" line="323"/>
-        <location filename="../qml/Main.qml" line="324"/>
-        <location filename="../qml/Main.qml" line="325"/>
-        <location filename="../qml/Main.qml" line="326"/>
-        <location filename="../qml/Main.qml" line="327"/>
+        <location filename="../qml/Main.qml" line="418"/>
+        <location filename="../qml/Main.qml" line="419"/>
+        <location filename="../qml/Main.qml" line="420"/>
+        <location filename="../qml/Main.qml" line="421"/>
+        <location filename="../qml/Main.qml" line="422"/>
+        <location filename="../qml/Main.qml" line="423"/>
+        <location filename="../qml/Main.qml" line="424"/>
+        <location filename="../qml/Main.qml" line="425"/>
+        <location filename="../qml/Main.qml" line="426"/>
+        <location filename="../qml/Main.qml" line="427"/>
+        <location filename="../qml/Main.qml" line="428"/>
         <source>Playback</source>
         <translation>Відтворення</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="317"/>
+        <location filename="../qml/Main.qml" line="418"/>
         <source>Play or pause</source>
         <translation>Грати або пауза</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="318"/>
+        <location filename="../qml/Main.qml" line="419"/>
         <source>Next song</source>
         <translation>Наступна пісня</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="319"/>
+        <location filename="../qml/Main.qml" line="420"/>
         <source>Previous song</source>
         <translation>Попередня пісня</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="320"/>
+        <location filename="../qml/Main.qml" line="421"/>
         <source>Forward 5 seconds</source>
         <translation>Уперед на 5 секунд</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="321"/>
+        <location filename="../qml/Main.qml" line="422"/>
         <source>Back 5 seconds</source>
         <translation>Назад на 5 секунд</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="322"/>
+        <location filename="../qml/Main.qml" line="423"/>
         <source>Volume up</source>
         <translation>Гучніше</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="323"/>
+        <location filename="../qml/Main.qml" line="424"/>
         <source>Volume down</source>
         <translation>Тихіше</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="324"/>
+        <location filename="../qml/Main.qml" line="425"/>
         <source>Mute or unmute</source>
         <translation>Вимкнути або ввімкнути звук</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="325"/>
+        <location filename="../qml/Main.qml" line="426"/>
         <source>Shuffle on or off</source>
         <translation>Перемішування увімк. або вимк.</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="326"/>
+        <location filename="../qml/Main.qml" line="427"/>
         <source>Repeat: off, all, one</source>
         <translation>Повтор: вимк., усі, одна</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="327"/>
+        <location filename="../qml/Main.qml" line="428"/>
         <source>Like the current song</source>
         <translation>Поточну пісню до улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="328"/>
-        <location filename="../qml/Main.qml" line="329"/>
-        <location filename="../qml/Main.qml" line="330"/>
-        <location filename="../qml/Main.qml" line="331"/>
-        <location filename="../qml/Main.qml" line="332"/>
-        <location filename="../qml/Main.qml" line="333"/>
-        <location filename="../qml/Main.qml" line="334"/>
-        <location filename="../qml/Main.qml" line="335"/>
+        <location filename="../qml/Main.qml" line="429"/>
+        <location filename="../qml/Main.qml" line="430"/>
+        <location filename="../qml/Main.qml" line="431"/>
+        <location filename="../qml/Main.qml" line="432"/>
+        <location filename="../qml/Main.qml" line="433"/>
+        <location filename="../qml/Main.qml" line="434"/>
+        <location filename="../qml/Main.qml" line="435"/>
+        <location filename="../qml/Main.qml" line="436"/>
         <source>Navigation</source>
         <translation>Навігація</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="328"/>
+        <location filename="../qml/Main.qml" line="429"/>
         <source>Search</source>
         <translation>Пошук</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="329"/>
+        <location filename="../qml/Main.qml" line="430"/>
         <source>Find in this list or page</source>
         <translation>Знайти у списку або на сторінці</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="332"/>
+        <location filename="../qml/Main.qml" line="433"/>
         <source>Lyrics</source>
         <translation>Текст пісні</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="333"/>
+        <location filename="../qml/Main.qml" line="434"/>
         <source>New playlist</source>
         <translation>Новий плейлист</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="334"/>
-        <location filename="../qml/Main.qml" line="342"/>
+        <location filename="../qml/Main.qml" line="435"/>
+        <location filename="../qml/Main.qml" line="443"/>
         <source>Settings</source>
         <translation>Налаштування</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="335"/>
-        <source>Close Now Playing or the audio sheet</source>
-        <translation>Закрити «Зараз грає» або панель звуку</translation>
-    </message>
-    <message>
-        <location filename="../qml/Main.qml" line="336"/>
-        <location filename="../qml/Main.qml" line="337"/>
-        <location filename="../qml/Main.qml" line="338"/>
-        <location filename="../qml/Main.qml" line="339"/>
-        <location filename="../qml/Main.qml" line="340"/>
-        <location filename="../qml/Main.qml" line="341"/>
+        <location filename="../qml/Main.qml" line="437"/>
+        <location filename="../qml/Main.qml" line="438"/>
+        <location filename="../qml/Main.qml" line="439"/>
+        <location filename="../qml/Main.qml" line="440"/>
+        <location filename="../qml/Main.qml" line="441"/>
+        <location filename="../qml/Main.qml" line="442"/>
         <source>Song lists</source>
         <translation>Списки пісень</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="336"/>
+        <location filename="../qml/Main.qml" line="437"/>
         <source>Move between songs</source>
         <translation>Перейти до іншої пісні</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="337"/>
+        <location filename="../qml/Main.qml" line="438"/>
         <source>Play the song</source>
         <translation>Грати пісню</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="338"/>
+        <location filename="../qml/Main.qml" line="439"/>
         <source>Select more songs</source>
         <translation>Виділити ще пісні</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="339"/>
+        <location filename="../qml/Main.qml" line="440"/>
         <source>Select all</source>
         <translation>Виділити все</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="340"/>
+        <location filename="../qml/Main.qml" line="441"/>
         <source>Song menu</source>
         <translation>Меню пісні</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="341"/>
+        <location filename="../qml/Main.qml" line="442"/>
         <source>Clear the selection</source>
         <translation>Зняти виділення</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="343"/>
-        <location filename="../qml/Main.qml" line="344"/>
+        <location filename="../qml/Main.qml" line="444"/>
+        <location filename="../qml/Main.qml" line="445"/>
         <source>Help</source>
         <translation>Довідка</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="343"/>
+        <location filename="../qml/Main.qml" line="444"/>
         <source>Keyboard shortcuts</source>
         <translation>Комбінації клавіш</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="344"/>
+        <location filename="../qml/Main.qml" line="445"/>
         <source>Report a bug</source>
         <translation>Повідомити про помилку</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="56"/>
+        <location filename="../qml/Main.qml" line="57"/>
         <source>Hide Snellar</source>
         <translation>Сховати Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="56"/>
+        <location filename="../qml/Main.qml" line="57"/>
         <source>Show Snellar</source>
         <translation>Показати Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="57"/>
+        <location filename="../qml/Main.qml" line="58"/>
         <source>Pause</source>
         <translation>Пауза</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="57"/>
+        <location filename="../qml/Main.qml" line="58"/>
         <source>Play</source>
         <translation>Грати</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="58"/>
+        <location filename="../qml/Main.qml" line="59"/>
         <source>Next</source>
         <translation>Наступна</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="60"/>
+        <location filename="../qml/Main.qml" line="61"/>
         <source>Quit Snellar</source>
         <translation>Вийти зі Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="342"/>
+        <location filename="../qml/Main.qml" line="436"/>
+        <source>Close Now Playing or the audio panel</source>
+        <translation>Закрити «Зараз грає» або панель звуку</translation>
+    </message>
+    <message>
+        <location filename="../qml/Main.qml" line="443"/>
         <source>Move between sections</source>
         <translation>Перейти до іншого розділу</translation>
     </message>
     <message>
+        <location filename="../qml/Main.qml" line="294"/>
         <source>Not saving: changes will be lost when Snellar closes</source>
         <translation>Зміни не зберігаються: після закриття Snellar вони зникнуть</translation>
     </message>
     <message>
+        <location filename="../qml/Main.qml" line="300"/>
         <source>Try again</source>
         <translation>Повторити</translation>
     </message>
@@ -1587,12 +1647,12 @@
 <context>
     <name>NowColumn</name>
     <message>
-        <location filename="../qml/parts/NowColumn.qml" line="45"/>
+        <location filename="../qml/parts/NowColumn.qml" line="43"/>
         <source>More</source>
         <translation>Ще</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowColumn.qml" line="56"/>
+        <location filename="../qml/parts/NowColumn.qml" line="54"/>
         <source>Nothing playing</source>
         <translation>Нічого не грає</translation>
     </message>
@@ -1605,11 +1665,6 @@
         <location filename="../qml/parts/NowColumn.qml" line="91"/>
         <source>Like</source>
         <translation>Додати до улюбленого</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/NowColumn.qml" line="92"/>
-        <source>Download</source>
-        <translation>Завантажити</translation>
     </message>
     <message>
         <location filename="../qml/parts/NowColumn.qml" line="93"/>
@@ -1625,27 +1680,27 @@
 <context>
     <name>NowPlaying</name>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="45"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="47"/>
         <source>Close</source>
         <translation>Закрити</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="112"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="113"/>
         <source>Unlike</source>
         <translation>Прибрати з улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="112"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="113"/>
         <source>Like</source>
         <translation>Додати до улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="116"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="118"/>
         <source>Sound</source>
         <translation>Звук</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="120"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="122"/>
         <source>More</source>
         <translation>Ще</translation>
     </message>
@@ -1719,38 +1774,77 @@
     </message>
 </context>
 <context>
+    <name>PlayTrace</name>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="27"/>
+        <source>Still trying to start this song</source>
+        <translation>Досі намагаємося запустити цю пісню</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="35"/>
+        <source>Cancel</source>
+        <translation>Скасувати</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="46"/>
+        <source>Playback stopped: 3 tracks in a row could not play</source>
+        <translation>Відтворення зупинено: 3 треки поспіль не вдалося запустити</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="71"/>
+        <source>Snellar will try again soon</source>
+        <translation>Snellar незабаром спробує знову</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="83"/>
+        <source>Try again</source>
+        <translation>Повторити</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="90"/>
+        <source>Continue</source>
+        <translation>Продовжити</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="90"/>
+        <source>Skip</source>
+        <translation>Пропустити</translation>
+    </message>
+</context>
+<context>
     <name>PlayerCapsule</name>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="40"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="39"/>
         <source>Nothing playing</source>
         <translation>Нічого не грає</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="56"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="79"/>
         <source>Unlike</source>
         <translation>Прибрати з улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="56"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="79"/>
         <source>Like</source>
         <translation>Додати до улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="76"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="100"/>
         <source>Queue</source>
         <translation>Черга</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="77"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="101"/>
         <source>Lyrics</source>
         <translation>Текст</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="78"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="102"/>
         <source>Sound</source>
         <translation>Звук</translation>
     </message>
     <message>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="56"/>
         <source>Try again</source>
         <translation>Повторити</translation>
     </message>
@@ -1758,22 +1852,22 @@
 <context>
     <name>Playlist</name>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="28"/>
+        <location filename="../qml/views/Playlist.qml" line="29"/>
         <source>Custom order</source>
         <translation>Власний порядок</translation>
     </message>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="28"/>
+        <location filename="../qml/views/Playlist.qml" line="29"/>
         <source>Date added</source>
         <translation>Дата додавання</translation>
     </message>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="67"/>
+        <location filename="../qml/views/Playlist.qml" line="69"/>
         <source>Playlist</source>
         <translation>Плейлист</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/views/Playlist.qml" line="69"/>
+        <location filename="../qml/views/Playlist.qml" line="71"/>
         <source>%n song(s)</source>
         <translation>
             <numerusform>%n пісня</numerusform>
@@ -1782,34 +1876,19 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="73"/>
-        <source>Rename</source>
-        <translation>Перейменувати</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="74"/>
+        <location filename="../qml/views/Playlist.qml" line="98"/>
         <source>Edit details</source>
         <translation>Змінити дані</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="75"/>
-        <source>Change cover</source>
-        <translation>Змінити обкладинку</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="78"/>
-        <source>Reset cover</source>
-        <translation>Скинути обкладинку</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="82"/>
-        <source>Delete</source>
-        <translation>Видалити</translation>
     </message>
     <message>
         <location filename="../qml/views/Playlist.qml" line="108"/>
         <source>No songs yet. Use “Add to playlist” in a song menu.</source>
         <translation>Тут ще немає пісень. Додайте їх через «Додати до плейлиста» в меню пісні.</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Playlist.qml" line="80"/>
+        <source>Playlist name</source>
+        <translation>Назва плейлиста</translation>
     </message>
 </context>
 <context>
@@ -1827,54 +1906,87 @@
 <context>
     <name>PlaylistEditor</name>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="69"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="75"/>
         <source>Choose a cover</source>
         <translation>Виберіть обкладинку</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="70"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="76"/>
         <source>Images (*.png *.jpg *.jpeg *.webp)</source>
         <translation>Зображення (*.png *.jpg *.jpeg *.webp)</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="78"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="84"/>
         <source>Edit details</source>
         <translation>Змінити дані</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="103"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="109"/>
         <source>Name</source>
         <translation>Назва</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="116"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="124"/>
         <source>Add a description</source>
         <translation>Додайте опис</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="128"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="138"/>
         <source>Cover from a song</source>
         <translation>Обкладинка пісні</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="168"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="178"/>
         <source>Choose image…</source>
         <translation>Вибрати зображення…</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="171"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="181"/>
         <source>Use the first song&apos;s cover</source>
         <translation>Обкладинка першої пісні</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="180"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="215"/>
         <source>Cancel</source>
         <translation>Скасувати</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="181"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="222"/>
         <source>Save</source>
         <translation>Зберегти</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="196"/>
+        <source>Delete playlist</source>
+        <translation>Видалити плейлист</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="203"/>
+        <source>Delete “%1”?</source>
+        <translation>Видалити «%1»?</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="222"/>
+        <source>Delete</source>
+        <translation>Видалити</translation>
+    </message>
+</context>
+<context>
+    <name>QuickAdd</name>
+    <message>
+        <location filename="../qml/parts/QuickAdd.qml" line="17"/>
+        <source>Add to playlist</source>
+        <translation>Додати до плейлиста</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/QuickAdd.qml" line="99"/>
+        <source>New playlist</source>
+        <translation>Новий плейлист</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/QuickAdd.qml" line="121"/>
+        <source>Playlist name</source>
+        <translation>Назва плейлиста</translation>
     </message>
 </context>
 <context>
@@ -1945,7 +2057,7 @@
 <context>
     <name>Settings</name>
     <message>
-        <location filename="../qml/views/Settings.qml" line="212"/>
+        <location filename="../qml/views/Settings.qml" line="255"/>
         <source>Settings</source>
         <translation>Налаштування</translation>
     </message>
@@ -1955,7 +2067,7 @@
         <translation>Мова</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="321"/>
+        <location filename="../qml/views/Settings.qml" line="364"/>
         <source>System</source>
         <translation>Системна</translation>
     </message>
@@ -1975,12 +2087,12 @@
         <translation>Віддзеркалює весь макет</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="346"/>
+        <location filename="../qml/views/Settings.qml" line="389"/>
         <source>Left</source>
         <translation>Ліворуч</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="346"/>
+        <location filename="../qml/views/Settings.qml" line="389"/>
         <source>Right</source>
         <translation>Праворуч</translation>
     </message>
@@ -2010,33 +2122,53 @@
         <translation>Тека завантажень</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="134"/>
-        <location filename="../qml/views/Settings.qml" line="484"/>
+        <location filename="../qml/views/Settings.qml" line="107"/>
+        <source>Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. These of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off, a Snellar pipeline for apps, corner radius 12 on all corners. Every app on its list gets that look. Undo puts them back and removes what Snellar installed.</source>
+        <translation>Вікно стає прозорим. GNOME відкриє власне вікно для встановлення розширення Blur my Shell. Розширення також розмиває верхню панель і огляд. Змінюються його налаштування: розмиття застосунків увімкнено, Snellar у його списку, непрозорість 255, динамічну непрозорість вимкнено, конвеєр Snellar для застосунків, радіус 12 на всіх кутах. Такий вигляд отримають усі застосунки з його списку. «Скасувати» поверне налаштування й видалить те, що встановив Snellar.</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="113"/>
+        <source>Lighter glass</source>
+        <translation>Світліше скло</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="114"/>
+        <source>Blur my Shell darkens the window by default. This gives its apps a Snellar pipeline with a softer blur and no darkening, and corner radius 12 on all corners. Every app on its list gets that look. Undo puts it back.</source>
+        <translation>Blur my Shell типово затемнює вікно. Ця кнопка дасть його застосункам конвеєр Snellar із м’якшим розмиттям і без затемнення, а також радіус 12 на всіх кутах. Такий вигляд отримають усі застосунки з його списку. «Скасувати» поверне все як було.</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="176"/>
+        <location filename="../qml/views/Settings.qml" line="564"/>
         <source>Clear history</source>
         <translation>Очистити історію</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="134"/>
+        <location filename="../qml/views/Settings.qml" line="176"/>
         <source>Forget everything you have played</source>
         <translation>Забути все, що ви слухали</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="465"/>
+        <location filename="../qml/views/Settings.qml" line="537"/>
+        <source>Open</source>
+        <translation>Відкрити</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="545"/>
         <source>Clear</source>
         <translation>Очистити</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="482"/>
+        <location filename="../qml/views/Settings.qml" line="562"/>
         <source>Clear your listening history?</source>
         <translation>Очистити історію прослуховування?</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="483"/>
+        <location filename="../qml/views/Settings.qml" line="563"/>
         <source>Recommendations start over from your likes. This cannot be undone.</source>
         <translation>Рекомендації почнуться заново від вашого улюбленого. Це не можна скасувати.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="485"/>
+        <location filename="../qml/views/Settings.qml" line="565"/>
         <source>History cleared</source>
         <translation>Історію очищено</translation>
     </message>
@@ -2071,22 +2203,22 @@
         <translation>Підключення</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="221"/>
+        <location filename="../qml/views/Settings.qml" line="264"/>
         <source>Find a setting</source>
         <translation>Знайти налаштування</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="268"/>
+        <location filename="../qml/views/Settings.qml" line="311"/>
         <source>No setting matches “%1”</source>
         <translation>Немає налаштувань за запитом «%1»</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="136"/>
+        <location filename="../qml/views/Settings.qml" line="178"/>
         <source>Keyboard shortcuts</source>
         <translation>Комбінації клавіш</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="457"/>
+        <location filename="../qml/views/Settings.qml" line="529"/>
         <source>Show</source>
         <translation>Показати</translation>
     </message>
@@ -2150,19 +2282,19 @@
         <translation>Найлегший потік, близько 50 кбіт/с</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="439"/>
+        <location filename="../qml/views/Settings.qml" line="511"/>
         <source>Auto</source>
         <comment>audio quality</comment>
         <translation>Авто</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="439"/>
+        <location filename="../qml/views/Settings.qml" line="511"/>
         <source>High</source>
         <comment>audio quality</comment>
         <translation>Висока</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="439"/>
+        <location filename="../qml/views/Settings.qml" line="511"/>
         <source>Data saver</source>
         <comment>audio quality</comment>
         <translation>Економія трафіку</translation>
@@ -2188,12 +2320,12 @@
         <translation>Грати після закриття вікна</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="72"/>
+        <location filename="../qml/views/Settings.qml" line="73"/>
         <source>Snellar stays in the tray; quit from its menu</source>
         <translation>Snellar лишається в треї, вийти можна з його меню</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="72"/>
+        <location filename="../qml/views/Settings.qml" line="73"/>
         <source>No tray on this desktop, so closing the window still quits</source>
         <translation>На цьому робочому столі немає трею, тому закриття вікна, як і раніше, завершує програму</translation>
     </message>
@@ -2209,7 +2341,7 @@
     </message>
     <message>
         <location filename="../qml/views/Settings.qml" line="32"/>
-        <location filename="../qml/views/Settings.qml" line="99"/>
+        <location filename="../qml/views/Settings.qml" line="100"/>
         <source>Dependencies</source>
         <translation>Залежності</translation>
     </message>
@@ -2275,183 +2407,193 @@
         <translation>Куди зберігаються завантажені пісні</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="71"/>
+        <location filename="../qml/views/Settings.qml" line="72"/>
         <source>Follows the cover of the song playing now</source>
         <translation>Змінюється за обкладинкою пісні, що грає</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="71"/>
+        <location filename="../qml/views/Settings.qml" line="72"/>
         <source>Colors buttons, the seek bar and the playing song</source>
         <translation>Колір кнопок, смуги прогресу та пісні, що грає</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="72"/>
+        <location filename="../qml/views/Settings.qml" line="73"/>
         <source>GNOME has no tray, so closing the window quits. Dependencies can add one.</source>
         <translation>У GNOME немає трея, тому закриття вікна завершує програму. Додати його можна в розділі «Залежності».</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="73"/>
+        <location filename="../qml/views/Settings.qml" line="74"/>
         <source>%1. Applies from the next song</source>
         <translation>%1. Діє з наступної пісні</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="79"/>
+        <location filename="../qml/views/Settings.qml" line="80"/>
         <source>Glass works through Blur my Shell. Auto uses Glass.</source>
         <translation>Скло працює через Blur my Shell. «Авто» вибирає скло.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="79"/>
+        <location filename="../qml/views/Settings.qml" line="80"/>
         <source>GNOME does not blur windows by itself, so Auto uses Cover.</source>
         <translation>GNOME сам не розмиває вікна, тому «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="80"/>
+        <location filename="../qml/views/Settings.qml" line="81"/>
         <source>Hyprland blurs this window. Auto uses Glass.</source>
         <translation>Hyprland розмиває це вікно. «Авто» вибирає скло.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="80"/>
+        <location filename="../qml/views/Settings.qml" line="81"/>
         <source>Blur is off in Hyprland, so Auto uses Cover.</source>
         <translation>У Hyprland розмиття вимкнено, тому «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="81"/>
+        <location filename="../qml/views/Settings.qml" line="82"/>
         <source>SwayFX blurs this window. Auto uses Glass.</source>
         <translation>SwayFX розмиває це вікно. «Авто» вибирає скло.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="81"/>
+        <location filename="../qml/views/Settings.qml" line="82"/>
         <source>Blur is off in SwayFX, so Auto uses Cover.</source>
         <translation>У SwayFX розмиття вимкнено, тому «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="82"/>
+        <location filename="../qml/views/Settings.qml" line="83"/>
         <source>Your niri config turns blur on. Auto stays on Cover: choose Glass in Appearance to use it.</source>
         <translation>У налаштуваннях niri розмиття увімкнено. «Авто» лишається на обкладинці: щоб використати його, виберіть скло в розділі «Оформлення».</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="82"/>
+        <location filename="../qml/views/Settings.qml" line="83"/>
         <source>niri does not blur this window yet, so Auto uses Cover.</source>
         <translation>niri поки не розмиває це вікно, тому «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="83"/>
+        <location filename="../qml/views/Settings.qml" line="84"/>
         <source>KDE Plasma blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.</source>
         <translation>KDE Plasma розмиває вікно, лише якщо про це просить програма, а Snellar поки не просить. «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="84"/>
+        <location filename="../qml/views/Settings.qml" line="85"/>
         <source>COSMIC blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.</source>
         <translation>COSMIC розмиває вікно, лише якщо про це просить програма, а Snellar поки не просить. «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="85"/>
+        <location filename="../qml/views/Settings.qml" line="86"/>
         <source>Sway cannot blur windows. SwayFX can. Auto uses Cover.</source>
         <translation>Sway не вміє розмивати вікна, а SwayFX вміє. «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="86"/>
+        <location filename="../qml/views/Settings.qml" line="87"/>
         <source>Snellar cannot tell whether this desktop blurs windows. Auto uses Cover.</source>
         <translation>Snellar не може визначити, чи розмиває вікна це середовище. «Авто» вибирає обкладинку.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="91"/>
+        <location filename="../qml/views/Settings.qml" line="92"/>
         <source>Add this to your Hyprland config. Snellar never edits your files.</source>
         <translation>Додайте це в налаштування Hyprland. Snellar ніколи не змінює ваші файли.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="92"/>
+        <location filename="../qml/views/Settings.qml" line="93"/>
         <source>Add this to your main SwayFX config, not an included file: only the main one can be read. Snellar never edits your files.</source>
         <translation>Додайте це в основний файл налаштувань SwayFX, а не у включений: прочитати можна лише основний. Snellar ніколи не змінює ваші файли.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="93"/>
+        <location filename="../qml/views/Settings.qml" line="94"/>
         <source>Add this to your niri config. Snellar never edits your files.</source>
         <translation>Додайте це в налаштування niri. Snellar ніколи не змінює ваші файли.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="98"/>
+        <location filename="../qml/views/Settings.qml" line="99"/>
         <source>Can be improved</source>
         <translation>Можна покращити</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="105"/>
+        <location filename="../qml/views/Settings.qml" line="106"/>
         <source>Glass through Blur my Shell</source>
         <translation>Скло через Blur my Shell</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="106"/>
-        <source>Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. Four of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off. Undo puts them back and removes what Snellar installed.</source>
-        <translation>Вікно стає прозорим. GNOME відкриє своє вікно для встановлення розширення Blur my Shell. Розширення також розмиває верхню панель і огляд. Зміняться чотири його налаштування: розмиття застосунків увімкнено, Snellar додано до списку, непрозорість 255, динамічну непрозорість вимкнено. Кнопка «Скасувати» поверне їх і видалить те, що поставив Snellar.</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Settings.qml" line="111"/>
+        <location filename="../qml/views/Settings.qml" line="119"/>
         <source>Tray</source>
         <translation>Трей</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="112"/>
+        <location filename="../qml/views/Settings.qml" line="120"/>
         <source>GNOME has no tray, so closing the window quits. GNOME opens its own dialog to install AppIndicator support.</source>
         <translation>У GNOME немає трея, тому закриття вікна завершує програму. GNOME відкриє своє вікно для встановлення AppIndicator.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="118"/>
-        <location filename="../qml/views/Settings.qml" line="121"/>
+        <location filename="../qml/views/Settings.qml" line="126"/>
+        <location filename="../qml/views/Settings.qml" line="129"/>
         <source>Window blur</source>
         <translation>Розмиття вікна</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="119"/>
+        <location filename="../qml/views/Settings.qml" line="127"/>
         <source>Add this to your Hyprland config. This form, for Hyprland before 0.57, has not been tested. Snellar never edits your files.</source>
         <translation>Додайте це в налаштування Hyprland. Такий запис, для Hyprland до 0.57, не перевірявся. Snellar ніколи не змінює ваші файли.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="126"/>
+        <location filename="../qml/views/Settings.qml" line="134"/>
         <source>Components</source>
         <translation>Компоненти</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="127"/>
+        <location filename="../qml/views/Settings.qml" line="135"/>
         <source>What Snellar runs on here, for bug reports.</source>
         <translation>На чому тут працює Snellar, для повідомлень про помилки.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="136"/>
+        <location filename="../qml/views/Settings.qml" line="175"/>
+        <source>Equalizer and effects</source>
+        <translation>Еквалайзер і ефекти</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="175"/>
+        <source>Also opens from the sliders button by the player</source>
+        <translation>Відкривається і кнопкою з повзунками біля плеєра</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="178"/>
         <source>Also opens with Ctrl+/</source>
         <translation>Також відкривається через Ctrl+/</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="360"/>
+        <location filename="../qml/views/Settings.qml" line="422"/>
         <source>Waiting for GNOME</source>
         <translation>Чекаємо на відповідь GNOME</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="360"/>
+        <location filename="../qml/views/Settings.qml" line="422"/>
         <source>Set up glass</source>
         <translation>Налаштувати скло</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="376"/>
+        <location filename="../qml/views/Settings.qml" line="432"/>
+        <source>Update glass</source>
+        <translation>Оновити скло</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="448"/>
         <source>Undo</source>
         <translation>Скасувати</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="394"/>
+        <location filename="../qml/views/Settings.qml" line="466"/>
         <source>Copy</source>
         <translation>Скопіювати</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="397"/>
+        <location filename="../qml/views/Settings.qml" line="469"/>
         <source>Copied</source>
         <translation>Скопійовано</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="422"/>
+        <location filename="../qml/views/Settings.qml" line="494"/>
         <source>Browse</source>
         <translation>Огляд</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="429"/>
+        <location filename="../qml/views/Settings.qml" line="501"/>
         <source>Choose a download folder</source>
         <translation>Виберіть теку для завантажень</translation>
     </message>
@@ -2466,14 +2608,89 @@
         <translation>Отримати безкоштовний ключ на Last.fm</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="135"/>
+        <location filename="../qml/views/Settings.qml" line="177"/>
         <source>Music player</source>
         <translation>Музичний плеєр</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="367"/>
+        <location filename="../qml/views/Settings.qml" line="439"/>
         <source>Add tray support</source>
         <translation>Додати трей</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="68"/>
+        <source>Update automatically</source>
+        <translation>Оновлюватися автоматично</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="145"/>
+        <source>Last checked %1</source>
+        <translation>Остання перевірка: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="145"/>
+        <source>Not checked yet</source>
+        <translation>Ще не перевірялося</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="147"/>
+        <source>Version %1. A development build does not update itself</source>
+        <translation>Версія %1. Збірка для розробки не оновлюється сама</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="148"/>
+        <source>Version %1 runs from %2. Only a copy set up by the install script updates itself</source>
+        <translation>Версія %1 запущена з %2. Сама оновлюється лише копія, встановлена скриптом встановлення</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="150"/>
+        <source>Version %1. Off: new versions are not checked for</source>
+        <translation>Версія %1. Вимкнено: нові версії не перевіряються</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="151"/>
+        <source>Version %1. Checking for a new one</source>
+        <translation>Версія %1. Перевірка нової</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="152"/>
+        <source>Version %1. Getting %2 in the background: %3%</source>
+        <translation>Версія %1. Завантаження %2 у фоні: %3%</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="154"/>
+        <source>Version %1 is ready and starts the next time you open Snellar</source>
+        <translation>Версія %1 готова і запуститься під час наступного відкриття Snellar</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="155"/>
+        <source>Version %1. Could not update: %2 It tries again later</source>
+        <translation>Версія %1. Не вдалося оновитися: %2 Спробує знову пізніше</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="156"/>
+        <source>Version %1. %2</source>
+        <translation>Версія %1. %2</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="407"/>
+        <source>Check now</source>
+        <translation>Перевірити зараз</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="407"/>
+        <source>Restart</source>
+        <translation>Перезапустити</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="153"/>
+        <source>Version %1 is up to date. %2</source>
+        <translation>Версія %1 актуальна. %2</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="149"/>
+        <source>Version %1. This build has no update key, so it does not update itself</source>
+        <translation>Версія %1. У цій збірці немає ключа оновлень, тому вона не оновлюється сама</translation>
     </message>
 </context>
 <context>
@@ -2552,24 +2769,29 @@
         <translation>Назва плейлиста</translation>
     </message>
     <message>
-        <location filename="../qml/parts/Sidebar.qml" line="171"/>
-        <source>Import from a link or CSV</source>
-        <translation>Імпорт за посиланням або CSV</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/Sidebar.qml" line="234"/>
+        <location filename="../qml/parts/Sidebar.qml" line="253"/>
         <source>Rename</source>
         <translation>Перейменувати</translation>
     </message>
     <message>
-        <location filename="../qml/parts/Sidebar.qml" line="235"/>
+        <location filename="../qml/parts/Sidebar.qml" line="254"/>
         <source>Delete folder</source>
         <translation>Видалити теку</translation>
     </message>
     <message>
-        <location filename="../qml/parts/Sidebar.qml" line="267"/>
+        <location filename="../qml/parts/Sidebar.qml" line="286"/>
         <source>Settings</source>
         <translation>Налаштування</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/Sidebar.qml" line="178"/>
+        <source>Import</source>
+        <translation>Імпорт</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/Sidebar.qml" line="189"/>
+        <source>Create</source>
+        <translation>Створити</translation>
     </message>
 </context>
 <context>
@@ -2620,40 +2842,45 @@
         <translation>%1 кбіт/с</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="14"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="16"/>
         <source>Downloaded</source>
         <translation>Завантажено</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="24"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="26"/>
         <source>%1 kHz</source>
         <translation>%1 кГц</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="21"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="23"/>
         <source>Turned down by %1 dB to even out loudness</source>
         <translation>Тихіше на %1 дБ для рівної гучності</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="21"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="23"/>
         <source>Loudness already even</source>
         <translation>Гучність уже рівна</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="22"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="24"/>
         <source>Loudness evened out while playing</source>
         <translation>Гучність вирівнюється під час відтворення</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/StreamBadge.qml" line="15"/>
+        <source>Downloading</source>
+        <translation>Завантажується</translation>
     </message>
 </context>
 <context>
     <name>Theme</name>
     <message>
-        <location filename="../qml/Theme.qml" line="271"/>
+        <location filename="../qml/Theme.qml" line="285"/>
         <source>Just now</source>
         <translation>Щойно</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/Theme.qml" line="272"/>
+        <location filename="../qml/Theme.qml" line="286"/>
         <source>%n minute(s) ago</source>
         <translation>
             <numerusform>%n хвилину тому</numerusform>
@@ -2662,7 +2889,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/Theme.qml" line="273"/>
+        <location filename="../qml/Theme.qml" line="287"/>
         <source>%n hour(s) ago</source>
         <translation>
             <numerusform>%n годину тому</numerusform>
@@ -2671,7 +2898,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/Theme.qml" line="274"/>
+        <location filename="../qml/Theme.qml" line="288"/>
         <source>%n day(s) ago</source>
         <translation>
             <numerusform>%n день тому</numerusform>
@@ -2695,22 +2922,22 @@
 <context>
     <name>TrackRow</name>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="212"/>
+        <location filename="../qml/parts/TrackRow.qml" line="210"/>
         <source>Unlike</source>
         <translation>Прибрати з улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="212"/>
+        <location filename="../qml/parts/TrackRow.qml" line="210"/>
         <source>Like</source>
         <translation>Додати до улюбленого</translation>
     </message>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="237"/>
+        <location filename="../qml/parts/TrackRow.qml" line="235"/>
         <source>Remove</source>
         <translation>Прибрати</translation>
     </message>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="237"/>
+        <location filename="../qml/parts/TrackRow.qml" line="235"/>
         <source>More</source>
         <translation>Ще</translation>
     </message>
@@ -2764,6 +2991,29 @@
         <location filename="../qml/parts/VolumeControl.qml" line="15"/>
         <source>Mute</source>
         <translation>Вимкнути звук</translation>
+    </message>
+</context>
+<context>
+    <name>WindowFrame</name>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="49"/>
+        <source>Minimize</source>
+        <translation>Згорнути</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="56"/>
+        <source>Restore</source>
+        <translation>Відновити</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="56"/>
+        <source>Maximize</source>
+        <translation>Розгорнути</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="63"/>
+        <source>Close window</source>
+        <translation>Закрити вікно</translation>
     </message>
 </context>
 <context>
@@ -2832,56 +3082,6 @@
         <location filename="../qml/Words.qml" line="31"/>
         <source>%1 subscribers</source>
         <translation>Підписників: %1</translation>
-    </message>
-</context>
-<context>
-    <name>PlayTrace</name>
-    <message>
-        <source>Still trying to start this song</source>
-        <translation>Досі намагаємося запустити цю пісню</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation>Скасувати</translation>
-    </message>
-    <message>
-        <source>Playback stopped: 3 tracks in a row could not play</source>
-        <translation>Відтворення зупинено: 3 треки поспіль не вдалося запустити</translation>
-    </message>
-    <message>
-        <source>Snellar will try again soon</source>
-        <translation>Snellar незабаром спробує знову</translation>
-    </message>
-    <message>
-        <source>Try again</source>
-        <translation>Повторити</translation>
-    </message>
-    <message>
-        <source>Continue</source>
-        <translation>Продовжити</translation>
-    </message>
-    <message>
-        <source>Skip</source>
-        <translation>Пропустити</translation>
-    </message>
-</context>
-<context>
-    <name>LibraryGate</name>
-    <message>
-        <source>Try again</source>
-        <translation>Повторити</translation>
-    </message>
-    <message>
-        <source>Open folder</source>
-        <translation>Відкрити теку</translation>
-    </message>
-    <message>
-        <source>Continue without saving</source>
-        <translation>Продовжити без збереження</translation>
-    </message>
-    <message>
-        <source>Nothing you do in this session will be kept, and your library is not shown.</source>
-        <translation>Усе, що ви зробите в цьому сеансі, не збережеться, а вашу бібліотеку не буде показано.</translation>
     </message>
 </context>
 </TS>

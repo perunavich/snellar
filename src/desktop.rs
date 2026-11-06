@@ -48,6 +48,7 @@ const SWAY_GET_VERSION: u32 = 7;
 const SWAY_GET_CONFIG: u32 = 9;
 const SWAY_TRUE: [&str; 7] = ["1", "yes", "on", "true", "enable", "enabled", "active"];
 const GSETTINGS: &str = "gsettings";
+pub const OWN_DECORATION: &str = "bradient";
 const FIRST_ANSWER_LIMIT: Duration = Duration::from_millis(500);
 const HYPRLAND_LUA_SINCE: (u32, u32) = (0, 57);
 const HYPRLAND_LUA_LINE: &str = "hl.config({ decoration = { blur = { enabled = true } } })";
@@ -227,9 +228,14 @@ pub fn kind() -> Desktop {
     *FOUND.get_or_init(|| detect(env, is_swayfx))
 }
 
+fn frameless(desktop: Desktop, decoration: Option<&str>) -> bool {
+    desktop == Desktop::Gnome && matches!(decoration, None | Some(OWN_DECORATION))
+}
+
 fn described(desktop: Desktop, blur: bool, line: Option<String>, gnome: Option<&glass::State>) -> Value {
     json!({
         "desktop": desktop.name(),
+        "frameless": frameless(desktop, env("QT_WAYLAND_DECORATION").as_deref()),
         "blur": blur,
         "glass": desktop.glass(blur),
         "line": if blur { None } else { line },
@@ -302,6 +308,16 @@ mod tests {
     use std::os::unix::net::UnixListener;
 
     use super::*;
+
+    #[test]
+    fn only_gnome_loses_the_bar_and_a_chosen_decoration_keeps_it() {
+        assert!(frameless(Desktop::Gnome, None));
+        assert!(frameless(Desktop::Gnome, Some(OWN_DECORATION)));
+        assert!(!frameless(Desktop::Gnome, Some("adwaita")));
+        for desktop in [Desktop::Hyprland, Desktop::Kde, Desktop::Niri, Desktop::Sway, Desktop::SwayFx, Desktop::Cosmic, Desktop::Other] {
+            assert!(!frameless(desktop, None), "{}", desktop.name());
+        }
+    }
 
     fn answering(name: &str, reply: &'static [u8], framed: bool) -> (std::path::PathBuf, std::thread::JoinHandle<Vec<u8>>) {
         let dir = std::env::temp_dir().join(format!("snellar-desktop-{}-{name}", std::process::id()));

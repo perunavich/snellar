@@ -30,7 +30,7 @@ PillButton {
     Component.onCompleted: load()
     onClicked: {
         load()
-        menu.popup(choice, 0, choice.height + Theme.spaceXs)
+        menu.toggle(choice, 0, choice.height + Theme.spaceXs)
     }
 
     RiffMenu {

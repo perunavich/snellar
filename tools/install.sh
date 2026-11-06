@@ -182,6 +182,7 @@ install_app() {
     *) say "$(dirname "$link") is not in your PATH, so the short command snellar will not work in a terminal." ;;
     esac
     say "To remove it: curl -fsSL $script_url | bash -s -- uninstall"
+    say "If Snellar does not show up in the menu, log out and back in."
 }
 
 uninstall_app() {

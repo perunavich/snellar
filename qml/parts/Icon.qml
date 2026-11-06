@@ -24,6 +24,9 @@ Item {
         alert: circle(12, 12, 10) + "M12 8v4M12 16h.01",
         keyboard: "M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8",
         close: "M18 6L6 18M6 6l12 12",
+        minimize: "M5 12h14",
+        maximize: "M6 6h12v12H6z",
+        restore: "M8 8h11v11H8zM5 16V5h11",
         droplet: "M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z",
         box: "M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8",
         info: circle(12, 12, 10) + "M12 16v-4M12 8h.01",
@@ -71,8 +74,9 @@ Item {
         grip: circle(9, 6, 1) + circle(15, 6, 1) + circle(9, 12, 1) + circle(15, 12, 1) + circle(9, 18, 1) + circle(15, 18, 1)
     })
 
-    RotationAnimator {
+    NumberAnimation {
         target: icon
+        property: "rotation"
         running: icon.spinning
         loops: Animation.Infinite
         from: 0

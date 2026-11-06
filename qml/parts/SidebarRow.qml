@@ -11,7 +11,7 @@ FocusScope {
     property bool lit: false
     property int count: 0
     signal clicked()
-    signal menuRequested(real x, real y)
+    property var menu: null
 
     implicitHeight: Theme.sidebarRow
     implicitWidth: Theme.snap(glyph.width + name.implicitWidth + badge.width + 4 * Theme.spaceSm + row.indent)
@@ -63,9 +63,6 @@ FocusScope {
     }
 
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-    TapHandler { onTapped: row.clicked() }
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: p => row.menuRequested(p.position.x, p.position.y)
-    }
+    Tap { onTapped: row.clicked() }
+    MenuTap { menu: row.menu }
 }

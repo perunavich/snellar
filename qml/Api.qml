@@ -9,6 +9,8 @@ QtObject {
     readonly property bool mock: Qt.application.arguments.indexOf("--mock=1") >= 0
     readonly property var mp: mock ? Qt.createComponent("dev/MockPlayer.qml").createObject(api) : null
     property var likedIds: ({})
+    property var downloadedIds: ({})
+    property var downloadingIds: ({})
     property var dislikedIds: ({})
     property var pins: []
     readonly property var direct: ["bugReport", "bugReportAttach", "bugReportPack", "reports"]
@@ -46,6 +48,7 @@ QtObject {
     signal libraryChanged()
     signal historyChanged()
     signal toolsChanged()
+    signal updateChanged()
     signal retry()
     signal settingSaved(string key, var value)
 
@@ -67,7 +70,7 @@ QtObject {
         try { return JSON.parse(s) } catch (e) { return fallback }
     }
 
-    readonly property var quietly: ["suggest", "prefetch", "artistMix", "getSetting", "getFx", "favorites", "dislikes", "pins", "playlists", "savedPlaylists", "savedAlbums", "folders", "followed", "downloads", "audioDevices"]
+    readonly property var quietly: ["suggest", "prefetch", "artistMix", "getSetting", "getFx", "favorites", "dislikes", "pins", "playlists", "savedPlaylists", "savedAlbums", "folders", "followed", "downloads", "downloadedTracks", "recentPlaylists", "audioDevices"]
 
     function answer(method, args, done, v, error, code, after, told) {
         if (error) {
@@ -106,6 +109,16 @@ QtObject {
         ytdlpBusy = true
         if (mp) mp.ytdlpAsks++
         else Core.fetchYtdlp()
+    }
+
+    function checkUpdate() {
+        if (mp) mp.updateChecks++
+        else Core.checkUpdate()
+    }
+
+    function restartForUpdate() {
+        if (mp) mp.updateRestarts++
+        else Core.restartForUpdate()
     }
 
     function addTray() {
@@ -219,11 +232,43 @@ QtObject {
         if (Array.isArray(tracks)) call("enqueue", { tracks: tracks, next: !!playNext })
         else call("enqueue", { track: tracks, next: !!playNext })
     }
-    function addToPlaylist(list, tracks) {
+    function addToPlaylist(list, tracks, done) {
         call("addToPlaylist", { id: list.id, tracks: tracks }, added => {
             api.libraryChanged()
             api.toast(added > 0 ? qsTr("Added to %1").arg(list.name) : qsTr("Already in %1").arg(list.name))
+            if (done) done(added > 0)
         })
+    }
+    function downloadState(track) {
+        if (!track) return ""
+        return downloadingIds[track.id] === true ? "downloading" : downloadedIds[track.id] === true ? "downloaded" : ""
+    }
+    function download(tracks) {
+        const wanted = tracks.filter(t => !downloadState(t))
+        if (!wanted.length) return
+        const started = Object.assign({}, downloadingIds)
+        for (const t of wanted) started[t.id] = true
+        downloadingIds = started
+        call("download", { tracks: wanted }, (v, error) => {
+            if (!error) return
+            api.toast(error)
+            for (const t of wanted) downloadEnded(t.id)
+        })
+    }
+    function downloadEnded(id) {
+        const left = Object.assign({}, downloadingIds)
+        delete left[id]
+        downloadingIds = left
+    }
+    function hear(t) {
+        if (t.track) {
+            downloadEnded(t.track)
+            refreshDownloaded()
+        }
+        api.toast(Errors.toast(t))
+    }
+    function refreshDownloaded() {
+        call("downloadedTracks", {}, v => downloadedIds = (v || []).reduce((all, id) => Object.assign(all, { [id]: true }), {}))
     }
     function setLiked(tracks, on) { call("setLiked", { tracks: tracks, on: on }, () => api.libraryChanged()) }
     function like(track) { call("like", { track: track }, () => api.libraryChanged()) }
@@ -291,6 +336,7 @@ QtObject {
         const byId = v => (v || []).reduce((all, t) => Object.assign(all, { [t.id]: true }), {})
         call("favorites", {}, v => likedIds = byId(v))
         call("dislikes", {}, v => dislikedIds = byId(v))
+        refreshDownloaded()
         call("pins", {}, v => { if (JSON.stringify(v || []) !== JSON.stringify(pins)) pins = v || [] })
     }
 
@@ -303,6 +349,7 @@ QtObject {
         target: api.mp
         ignoreUnknownSignals: true
         function onPlayed() { api.historyChanged() }
+        function onTold(t) { api.hear(t) }
     }
 
     property Connections link: Connections {
@@ -315,9 +362,10 @@ QtObject {
             if (ok) api.answer(asked.method, asked.args, asked.done, v, null)
             else api.answer(asked.method, asked.args, asked.done, null, Errors.reply(v), v && v.code, v && v.retryAfter, v && v.told)
         }
-        function onToast(json) { api.toast(Errors.toast(api.parse(json, {}))) }
+        function onToast(json) { api.hear(api.parse(json, {})) }
         function onHistoryChanged() { api.historyChanged() }
         function onToolsChanged() { api.toolsChanged() }
+        function onUpdateChanged() { api.updateChanged() }
         function onDesktopChanged(json) { api.applyDesktop(api.parse(json, null)) }
         function onNudge(json) {
             const n = api.parse(json, null)

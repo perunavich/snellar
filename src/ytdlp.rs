@@ -25,7 +25,7 @@ const PROGRESS_STEP: u8 = 10;
 const BUSY_TRIES: u32 = 10;
 const BUSY_WAIT: Duration = Duration::from_millis(50);
 
-type Progress<'a> = dyn Fn(u8) + Send + Sync + 'a;
+pub type Progress<'a> = dyn Fn(u8) + Send + Sync + 'a;
 
 static ONE_AT_A_TIME: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
@@ -44,7 +44,7 @@ fn asset() -> Option<&'static str> {
     }
 }
 
-fn published<'a>(sums: &'a str, asset: &str) -> Option<&'a str> {
+pub fn published<'a>(sums: &'a str, asset: &str) -> Option<&'a str> {
     sums.lines().find_map(|line| {
         let (hash, name) = line.split_once(char::is_whitespace)?;
         (name.trim().trim_start_matches('*') == asset && hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit())).then_some(hash)
@@ -55,7 +55,7 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn hash_of(path: &Path) -> Option<String> {
+pub fn hash_of(path: &Path) -> Option<String> {
     let mut file = std::fs::File::open(path).ok()?;
     let mut context = digest::Context::new(&digest::SHA256);
     let mut buffer = vec![0u8; 1 << 16];
@@ -68,11 +68,11 @@ fn hash_of(path: &Path) -> Option<String> {
     }
 }
 
-async fn text(client: &reqwest::Client, url: &str) -> Result<String> {
+pub async fn text(client: &reqwest::Client, url: &str) -> Result<String> {
     client.get(url).send().await.and_then(reqwest::Response::error_for_status).map_err(net)?.text().await.map_err(net)
 }
 
-async fn download(client: &reqwest::Client, url: &str, part: &Path, progress: &Progress<'_>) -> Result<String> {
+pub async fn download(client: &reqwest::Client, url: &str, part: &Path, progress: &Progress<'_>) -> Result<String> {
     let mut response = client.get(url).send().await.and_then(reqwest::Response::error_for_status).map_err(net)?;
     let total = response.content_length().unwrap_or(0);
     let mut told = 0;
@@ -98,8 +98,15 @@ async fn download(client: &reqwest::Client, url: &str, part: &Path, progress: &P
 }
 
 pub async fn output_of(bin: &Path, flag: &str) -> Option<String> {
+    let mut command = Command::new(bin);
+    command.arg(flag);
+    output(command).await
+}
+
+pub async fn output(mut command: Command) -> Option<String> {
+    command.env_remove("LD_LIBRARY_PATH").stdin(Stdio::null()).stderr(Stdio::null());
     for _ in 0..BUSY_TRIES {
-        let run = Command::new(bin).arg(flag).env_remove("LD_LIBRARY_PATH").stdin(Stdio::null()).stderr(Stdio::null()).output();
+        let run = command.output();
         match tokio::time::timeout(VERSION_LIMIT, run).await.ok()? {
             Err(e) if e.raw_os_error() == Some(libc::ETXTBSY) => tokio::time::sleep(BUSY_WAIT).await,
             Err(_) => return None,
@@ -151,7 +158,7 @@ pub async fn fetch(client: &reqwest::Client, base: &str, asset: &str, target: &P
     placed.map(|()| if had { Outcome::Updated } else { Outcome::Installed })
 }
 
-fn now() -> u64 {
+pub fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
 }
 

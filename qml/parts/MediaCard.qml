@@ -10,8 +10,8 @@ Item {
     property bool playable: true
     property bool live: false
     property int cover: Theme.cardCover
-    property alias menuKind: menu.kind
-    property alias menuEntity: menu.entity
+    property alias menuKind: spot.kind
+    property alias menuEntity: spot.entity
     readonly property bool hovered: hover.hovered
     signal opened()
     signal played()
@@ -20,12 +20,9 @@ Item {
     height: cover + Theme.cardText
 
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-    TapHandler { onTapped: card.opened() }
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: p => menu.open(card, p.position.x, p.position.y)
-    }
-    MenuSpot { id: menu }
+    Tap { onTapped: card.opened() }
+    MenuTap { menu: spot }
+    MenuSpot { id: spot }
 
     Cover {
         id: art

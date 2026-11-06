@@ -50,6 +50,7 @@ pub enum Section {
     Audio,
     Library,
     Services,
+    About,
 }
 
 impl Section {
@@ -61,6 +62,7 @@ impl Section {
             Section::Audio => "audio",
             Section::Library => "library",
             Section::Services => "services",
+            Section::About => "about",
         }
     }
 }
@@ -173,6 +175,16 @@ pub const YTDLP_CHECKED: Setting = setting(
     Scope::State,
     "When Snellar last compared its yt-dlp with the latest release, in milliseconds.",
 );
+pub const AUTO_UPDATE: Setting = setting(
+    "autoUpdate",
+    Kind::Bool,
+    "true",
+    Scope::App,
+    "Keep an installed Snellar up to date: at most once a day the latest release is fetched in the background and starts at the next launch.",
+)
+.on(Section::About);
+pub const UPDATE_CHECKED: Setting =
+    setting("updateChecked", Kind::Number, "0", Scope::State, "When Snellar last read the latest release of itself, in milliseconds.");
 pub const RECS_EXPLORE: Setting =
     setting("recsExplore", Kind::Number, "0.3", Scope::App, "Share of unfamiliar artists in recommendations, 0 to 1.");
 pub const WAVE: Setting = setting("wave", Kind::Json, "{}", Scope::App, "Saved wave knobs: `{mood?, language?, novelty?, limit?}`.");
@@ -202,6 +214,8 @@ pub static ALL: &[&Setting] = &[
     &YTDLP_FALLBACK,
     &YTDLP_CHECKED,
     &GLASS_UNDO,
+    &AUTO_UPDATE,
+    &UPDATE_CHECKED,
     &RECS_EXPLORE,
     &WAVE,
 ];
@@ -333,7 +347,8 @@ mod tests {
                 "discordRpc",
                 "downloadDir",
                 "lastfmKey",
-                "proxy"
+                "proxy",
+                "autoUpdate"
             ]
         );
         for s in ALL.iter().filter(|s| s.section.is_some()) {
@@ -403,6 +418,7 @@ mod tests {
         assert!(!DISCORD_RPC.or_default::<bool>(&l));
         assert!(!CLOSE_TO_BACKGROUND.or_default::<bool>(&l), "closing quits unless asked");
         assert!(YTDLP_FALLBACK.or_default::<bool>(&l));
+        assert!(AUTO_UPDATE.or_default::<bool>(&l), "updates are on unless turned off");
         assert_eq!(POSITION.or_default::<f64>(&l), 0.0);
         assert_eq!(ACCENT.or_default::<String>(&l), "glass");
     }

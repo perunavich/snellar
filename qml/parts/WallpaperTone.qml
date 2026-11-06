@@ -24,13 +24,22 @@ Canvas {
     }
 
     function reload() {
+        if (Theme.desktopName === "gnome") {
+            const uri = Api.desktopInfo.gnome ? Api.desktopInfo.gnome.wallpaper : ""
+            if (uri) path = decodeURIComponent(uri.slice("file://".length))
+            else if (path) {
+                path = ""
+                Theme.wallpaperLuma = Theme.wallpaperLumaUnknown
+            }
+            return
+        }
         Files.read(sessionFile, text => {
             const next = wallpaperOf(text)
             if (next && next !== path) path = next
         })
     }
 
-    onPathChanged: loadImage("file://" + path)
+    onPathChanged: if (path) loadImage("file://" + path)
     onImageLoaded: requestPaint()
 
     onPaint: {

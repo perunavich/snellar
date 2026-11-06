@@ -64,7 +64,8 @@ Item {
         discordRpc: { title: qsTr("Show in Discord"), detail: qsTr("Your Discord status names the song you are listening to"), words: "Rich Presence" },
         downloadDir: { title: qsTr("Download folder"), detail: qsTr("Where downloaded songs are saved"), hint: "~/Music/Snellar", control: "folder" },
         lastfmKey: { title: qsTr("Last.fm API key"), detail: qsTr("Optional. Finds similar artists for your recommendations"), link: { text: qsTr("Get a free key on Last.fm"), url: "https://www.last.fm/api/account/create" } },
-        proxy: { title: qsTr("Proxy"), detail: qsTr("For YouTube and every other request Snellar makes. Empty uses the system proxy."), hint: "http://host:3128" }
+        proxy: { title: qsTr("Proxy"), detail: qsTr("For YouTube and every other request Snellar makes. Empty uses the system proxy."), hint: "http://host:3128" },
+        autoUpdate: { title: qsTr("Update automatically"), words: "version", control: "update" }
     })
 
     readonly property var liveDetails: ({
@@ -103,7 +104,14 @@ Item {
             control: "glassOffer",
             below: true,
             title: qsTr("Glass through Blur my Shell"),
-            detail: qsTr("Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. Four of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off. Undo puts them back and removes what Snellar installed.")
+            detail: qsTr("Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. These of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off, a Snellar pipeline for apps, corner radius 12 on all corners. Every app on its list gets that look. Undo puts them back and removes what Snellar installed.")
+        })
+        if (info.desktop === "gnome" && info.blur && info.gnome && !info.gnome.look) rows.push({
+            block: better,
+            control: "glassLook",
+            below: true,
+            title: qsTr("Lighter glass"),
+            detail: qsTr("Blur my Shell darkens the window by default. This gives its apps a Snellar pipeline with a softer blur and no darkening, and corner radius 12 on all corners. Every app on its list gets that look. Undo puts it back.")
         })
         if (trayAddable) rows.push({
             block: better,
@@ -130,9 +138,43 @@ Item {
         return rows
     }
 
+    readonly property string updateLine: {
+        const u = updates.data
+        if (!u) return ""
+        const version = u.version
+        const checked = u.checked ? qsTr("Last checked %1").arg(Theme.since(u.checked).toLowerCase()) : qsTr("Not checked yet")
+        switch (u.phase) {
+        case "development": return qsTr("Version %1. A development build does not update itself").arg(version)
+        case "elsewhere": return qsTr("Version %1 runs from %2. Only a copy set up by the install script updates itself").arg(version).arg(u.place)
+        case "unsigned": return qsTr("Version %1. This build has no update key, so it does not update itself").arg(version)
+        case "off": return qsTr("Version %1. Off: new versions are not checked for").arg(version)
+        case "checking": return qsTr("Version %1. Checking for a new one").arg(version)
+        case "downloading": return qsTr("Version %1. Getting %2 in the background: %3%").arg(version).arg(u.latest).arg(u.percent)
+        case "current": return qsTr("Version %1 is up to date. %2").arg(version).arg(checked)
+        case "ready": return qsTr("Version %1 is ready and starts the next time you open Snellar").arg(u.latest)
+        case "failed": return qsTr("Version %1. Could not update: %2 It tries again later").arg(version).arg(sentence(Errors.text(u.code)))
+        default: return qsTr("Version %1. %2").arg(version).arg(checked)
+        }
+    }
+
+    readonly property string updatePhase: updates.data ? updates.data.phase : "development"
+    readonly property bool updateManaged: updatePhase !== "development" && updatePhase !== "elsewhere" && updatePhase !== "unsigned"
+    readonly property bool updateBusy: updatePhase === "checking" || updatePhase === "downloading"
+
+    function sentence(text) { return /[.!?]$/.test(text) ? text : text + "." }
+
+    Fetch { id: updates; method: "updateStatus" }
+
+    Connections {
+        target: Api
+        function onUpdateChanged() { updates.reload(true) }
+        function onSettingSaved(key) { if (key === "autoUpdate") updates.reload(true) }
+    }
+
     readonly property var extras: [
+        { section: "audio", control: "equalizer", title: qsTr("Equalizer and effects"), detail: qsTr("Also opens from the sliders button by the player"), words: "eq bass reverb speed", first: true },
         { section: "library", control: "clearHistory", title: qsTr("Clear history"), detail: qsTr("Forget everything you have played") },
-        { section: "about", control: "version", title: "Snellar", detail: qsTr("Music player") },
+        { section: "about", control: "version", title: "Snellar", detail: qsTr("Music player"), first: true },
         { section: "about", control: "keys", title: qsTr("Keyboard shortcuts"), detail: qsTr("Also opens with Ctrl+/") }
     ]
 
@@ -140,7 +182,8 @@ Item {
         if (section.id === "dependencies") return dependencyRows
         const fromRegistry = Api.registry.filter(s => s.section === section.id).map(s => Object.assign(
             { key: s.key, control: s.kind === "bool" ? "switch" : "field", title: s.key, detail: "" }, labels[s.key]))
-        return fromRegistry.concat(extras.filter(e => e.section === section.id))
+        const added = extras.filter(e => e.section === section.id)
+        return added.filter(e => e.first).concat(fromRegistry, added.filter(e => !e.first))
     }
 
     function detailOf(row) { return liveDetails[row.key] ?? row.detail }
@@ -300,7 +343,7 @@ Item {
                                 required property int index
                                 width: card.width
                                 title: modelData.title
-                                detail: view.detailOf(modelData)
+                                detail: modelData.key === "autoUpdate" ? view.updateLine : view.detailOf(modelData)
                                 below: !!modelData.below
                                 link: modelData.link || null
                                 divided: index > 0
@@ -309,8 +352,8 @@ Item {
                                     sourceComponent: ({
                                         language: languageControl, accent: accentControl, glass: glassControl, side: sideControl,
                                         "switch": switchControl, field: fieldControl, folder: folderControl, quality: qualityControl, device: deviceControl,
-                                        clearHistory: clearControl, version: versionControl, keys: keysControl,
-                                        glassOffer: glassOfferControl, addTray: addTrayControl, copyLine: copyLineControl, undoGlass: undoGlassControl, components: componentsControl
+                                        clearHistory: clearControl, equalizer: equalizerControl, version: versionControl, update: updateControl, keys: keysControl,
+                                        glassOffer: glassOfferControl, glassLook: glassLookControl, addTray: addTrayControl, copyLine: copyLineControl, undoGlass: undoGlassControl, components: componentsControl
                                     })[row.modelData.control] || null
                                 }
 
@@ -352,12 +395,41 @@ Item {
                                     SettingToggle { key: row.modelData.key }
                                 }
                                 Component {
+                                    id: updateControl
+                                    Row {
+                                        spacing: Theme.spaceMd
+                                        PillButton {
+                                            visible: view.updateManaged
+                                            height: Theme.controlSm
+                                            enabled: !view.updateBusy
+                                            opacity: enabled ? 1 : Theme.disabledOpacity
+                                            primary: view.updatePhase === "ready"
+                                            text: view.updatePhase === "ready" ? qsTr("Restart") : qsTr("Check now")
+                                            onClicked: {
+                                                if (view.updatePhase === "ready") Api.restartForUpdate()
+                                                else Api.checkUpdate()
+                                            }
+                                        }
+                                        SettingToggle { anchors.verticalCenter: parent.verticalCenter; key: row.modelData.key }
+                                    }
+                                }
+                                Component {
                                     id: glassOfferControl
                                     PillButton {
                                         primary: true
                                         enabled: !Api.glassBusy
                                         opacity: enabled ? 1 : Theme.disabledOpacity
                                         text: Api.glassBusy ? qsTr("Waiting for GNOME") : qsTr("Set up glass")
+                                        onClicked: Api.setupGlass()
+                                    }
+                                }
+                                Component {
+                                    id: glassLookControl
+                                    PillButton {
+                                        primary: true
+                                        enabled: !Api.glassBusy
+                                        opacity: enabled ? 1 : Theme.disabledOpacity
+                                        text: qsTr("Update glass")
                                         onClicked: Api.setupGlass()
                                     }
                                 }
@@ -457,6 +529,14 @@ Item {
                                         text: qsTr("Show")
                                         icon: "keyboard"
                                         onClicked: Nav.keys = true
+                                    }
+                                }
+                                Component {
+                                    id: equalizerControl
+                                    PillButton {
+                                        text: qsTr("Open")
+                                        icon: "sliders"
+                                        onClicked: Nav.audio = true
                                     }
                                 }
                                 Component {

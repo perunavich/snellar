@@ -8,6 +8,7 @@ QtObject {
     readonly property var desktop: Api.firstDesktop
     property string autoGlass: desktop.glass
     property string desktopName: desktop.desktop
+    property bool frameless: desktop.frameless === true && Qt.platform.pluginName === "wayland"
     readonly property string glassLevel: ["glass", "cover", "solid"].indexOf(glass) >= 0 ? glass : autoGlass
     property bool navRight: Api.defaults.navRight
     readonly property real wallpaperLumaUnknown: 1
@@ -20,7 +21,7 @@ QtObject {
         FontLoader { source: "../fonts/MartianMono.ttf" }
     ]
 
-    readonly property color ink: "#0e1214"
+    readonly property color ink: "#111115"
     readonly property color frost: "#eef1ee"
     readonly property color glassEdge: "#8fe6c8"
     readonly property color deepEdge: "#0b6a52"
@@ -97,7 +98,6 @@ QtObject {
     readonly property int rPanel: 12
     readonly property int rRow: 8
     readonly property int rCard: 14
-    readonly property int rSheet: 24
     readonly property int rArtS: 6
     readonly property int rArtM: 10
     readonly property int rArtL: 14
@@ -122,6 +122,11 @@ QtObject {
     readonly property int windowHeight: 900
     readonly property int windowMinWidth: 960
     readonly property int windowMinHeight: 620
+    readonly property int windowRadius: 12
+    readonly property int windowBarHeight: 44
+    readonly property int windowButton: 28
+    readonly property int windowEdge: 6
+    readonly property int windowCorner: 14
     readonly property int sidebarWidth: 232
     readonly property int sidebarRow: 32
     readonly property int sidebarArt: 24
@@ -130,7 +135,7 @@ QtObject {
     readonly property int toolbarHeight: 52
     readonly property int capsuleHeight: 80
     readonly property int capsuleArt: 48
-    readonly property int capsuleWide: 800
+    readonly property int capsuleWide: 830
     readonly property int capsuleInfo: 180
     readonly property int capsuleCenter: 460
     readonly property int volumeBar: 72
@@ -164,8 +169,6 @@ QtObject {
     readonly property int rowHeight: 56
     readonly property int rowCover: 40
     readonly property int cardCover: 168
-    readonly property int sheetWidth: 800
-    readonly property int sheetHeight: 600
     readonly property int settingsWidth: 640
     readonly property int settingsNavWidth: 176
     readonly property int settingsSplitMin: 640
@@ -187,6 +190,7 @@ QtObject {
     readonly property int gripWidth: 28
     readonly property int fieldWidth: 240
     readonly property int menuWidth: 224
+    readonly property int pickerRows: 6
     readonly property int segmentHeight: 32
     readonly property int segmentInset: 2
     readonly property int segmentNarrow: 200
@@ -216,9 +220,13 @@ QtObject {
     readonly property int settingRow: 64
     readonly property int nowCover: 420
     readonly property int lyricSkeleton: 360
-    readonly property int eqHeight: 240
-    readonly property int eqTrack: 28
-    readonly property int sheetRise: 60
+    readonly property int eqHeight: 208
+    readonly property int eqScale: 34
+    readonly property int eqPre: 44
+    readonly property int audioWidth: 640
+    readonly property int audioMinWidth: 520
+    readonly property int fxLabel: 148
+    readonly property int fxValue: 64
     readonly property int nowRise: 90
 
     readonly property int fast: 150

@@ -38,6 +38,10 @@ esac
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "release only from main" >&2; exit 1; }
 git diff --quiet HEAD -- src qml build.rs Cargo.toml Cargo.lock i18n fonts packaging \
     || { echo "uncommitted changes in the app" >&2; exit 1; }
+git cat-file -e HEAD:packaging/update-key.pub 2>/dev/null \
+    || { echo "no committed packaging/update-key.pub: a build without it never updates itself. Run tools/update-key.sh once" >&2; exit 1; }
+key=$(openssl pkey -pubin -in packaging/update-key.pub -outform DER 2>/dev/null | tail -c 32 | od -An -tx1 | tr -d ' \n')
+[ ${#key} = 64 ] || { echo "packaging/update-key.pub is not an ed25519 public key" >&2; exit 1; }
 
 version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 file="Snellar-$version-$(date +%Y%m%d-%H%M)-$(git rev-parse --short HEAD).AppImage"
@@ -46,6 +50,8 @@ tools/appimage.sh "$versions/$file.part"
 mv "$versions/$file.part" "$versions/$file"
 sync "$versions"
 "$versions/$file" --appimage-offset >/dev/null
+built=$("$versions/$file" --update-key)
+[ "$built" = "$key" ] || { rm -f "$versions/$file"; echo "the build trusts the key '$built', packaging/update-key.pub is $key; removed it" >&2; exit 1; }
 activate "$versions/$file"
 
 assets=target/release-assets

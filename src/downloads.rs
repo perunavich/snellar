@@ -93,7 +93,7 @@ impl Downloads {
                 Err(e) if Code::of(&e) == Code::YtdlpMissing => Toast::new(Code::DownloadNoTool),
                 Err(e) => Toast::failed(Code::DownloadFailed, &e),
             };
-            (this.ui)(UiEvent::Toast(toast.arg(label)));
+            (this.ui)(UiEvent::Toast(toast.arg(label).track(&track.id)));
         });
     }
 
@@ -212,14 +212,14 @@ mod tests {
         let sink = told.clone();
         let ui: Ui = Arc::new(move |e| {
             if let UiEvent::Toast(t) = e {
-                sink.lock().unwrap().push(t.code)
+                sink.lock().unwrap().push((t.code, t.track))
             }
         });
         let resolver = Arc::new(Resolver::new(dir.clone()));
         let downloads = Arc::new(Downloads { ui, library, bin: Some(dir.join("no-such-tool")), resolver, limit: DOWNLOAD_LIMIT });
         downloads.start(Track { id: snellar_core::ids::TrackId::youtube("dQw4w9WgXcQ"), title: "t".into(), ..Track::default() });
         crate::fakes::until("the toast", || !told.lock().unwrap().is_empty()).await;
-        assert_eq!(*told.lock().unwrap(), [Code::DownloadNoTool]);
+        assert_eq!(*told.lock().unwrap(), [(Code::DownloadNoTool, "yt:dQw4w9WgXcQ".to_string())]);
         std::fs::remove_dir_all(&dir).ok();
     }
 

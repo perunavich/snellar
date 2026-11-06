@@ -20,6 +20,8 @@ const USAGE: &str = "usage: snellar <command>
   ctl reports            saved bug reports, newest first
   ctl diag               DNS, TCP, TLS and HTTP to each host Snellar needs
   mcp                    MCP server on stdio
+  --version              the version and the commit of this build
+  --update-key           the key updates must be signed with, in hex, or none
 
 Without a command snellar starts the app.";
 
@@ -29,6 +31,14 @@ pub fn run(args: &[String]) -> Option<i32> {
     let first = args.first()?.as_str();
     if first == "--help" || first == "-h" || first == "help" {
         println!("{USAGE}");
+        return Some(0);
+    }
+    if first == "--version" {
+        println!("{} {} ({})", product::NAME, crate::report::VERSION, crate::report::COMMIT);
+        return Some(0);
+    }
+    if first == "--update-key" {
+        println!("{}", crate::update::compiled_key_hex());
         return Some(0);
     }
     if !COMMANDS.contains(&first) {
@@ -134,6 +144,8 @@ mod tests {
         assert_eq!(run(&[]), None);
         assert_eq!(run(&["--shot=/tmp/x.png".into()]), None);
         assert_eq!(run(&["--help".into()]), Some(0));
+        assert_eq!(run(&["--version".into()]), Some(0));
+        assert_eq!(run(&["--update-key".into()]), Some(0));
     }
 
     #[tokio::test]

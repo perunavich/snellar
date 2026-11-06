@@ -50,13 +50,13 @@ Item {
             width: parent.width
             spacing: Theme.spaceMd
             IosSegment {
-                width: Theme.segmentWide
+                width: Math.max(Theme.segmentWide, fit)
                 current: view.filter
                 options: [{ key: "all", label: qsTr("All") }, { key: "albums", label: qsTr("Albums") }, { key: "singles", label: qsTr("Singles & EPs") }]
                 onPicked: key => view.filter = key
             }
             IosSegment {
-                width: Theme.segmentWide
+                width: Math.max(Theme.segmentWide, fit)
                 current: view.sort
                 options: [{ key: "default", label: qsTr("Default") }, { key: "newest", label: qsTr("Newest") }, { key: "oldest", label: qsTr("Oldest") }, { key: "title", label: qsTr("A–Z") }]
                 onPicked: key => view.sort = key

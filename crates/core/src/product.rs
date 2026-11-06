@@ -13,6 +13,7 @@ pub const TRACE_ENV: &str = "SNELLAR_TRACE";
 pub const SOCKET_FILE: &str = "snellar.sock";
 pub const MPV_SOCKET_PREFIX: &str = "snellar-mpv-";
 pub const YTDLP: &str = "yt-dlp";
+pub const APP_IMAGE: &str = "Snellar-x86_64.AppImage";
 
 #[expect(clippy::disallowed_methods, reason = "product is the one place that resolves the data root")]
 static DATA: LazyLock<PathBuf> = LazyLock::new(|| root(dirs::data_dir()));
@@ -63,6 +64,10 @@ pub fn ffmpeg_bin() -> Option<PathBuf> {
     on_path(std::env::var_os("PATH"), "ffmpeg")
 }
 
+pub fn installed_app_image() -> Option<PathBuf> {
+    Some(dirs::home_dir()?.join(".local/opt").join(ID).join("versions").join(APP_IMAGE))
+}
+
 pub fn data_dir() -> PathBuf {
     DATA.clone()
 }
@@ -94,13 +99,14 @@ mod tests {
     fn shown_version_reads_for_people() {
         assert_eq!(shown_version("0.1.0-beta"), "0.1 beta");
         assert_eq!(shown_version("0.1.0"), "0.1");
+        assert_eq!(shown_version("0.1.1-beta"), "0.1.1 beta");
         assert_eq!(shown_version("1.2.3"), "1.2.3");
         assert_eq!(shown_version("0.2.0-rc.1"), "0.2 rc.1");
     }
 
     #[test]
     fn shown_version_of_this_build_is_the_release() {
-        assert_eq!(shown_version(VERSION), "0.1 beta");
+        assert_eq!(shown_version(VERSION), "0.1.1 beta");
     }
 
     #[test]

@@ -97,8 +97,9 @@ fn commit() -> String {
             .filter(|o| o.status.success())
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
     };
-    if let Some(head) = git(&["rev-parse", "--git-path", "HEAD"]) {
-        println!("cargo:rerun-if-changed={head}");
+    match git(&["rev-parse", "--git-path", "HEAD"]) {
+        Some(head) => println!("cargo:rerun-if-changed={head}"),
+        None => println!("cargo:rerun-if-changed=.no-git-yet"),
     }
     if let Some(branch) =
         git(&["symbolic-ref", "-q", "HEAD"]).and_then(|r| git(&["rev-parse", "--git-path", &r])).filter(|p| Path::new(p).exists())
@@ -108,8 +109,20 @@ fn commit() -> String {
     git(&["rev-parse", "--short=9", "HEAD"]).unwrap_or_else(|| "unknown".into())
 }
 
+fn update_key() {
+    let src = Path::new("packaging/update-key.pub");
+    println!("cargo:rerun-if-changed=packaging");
+    let key = std::fs::read_to_string(src).unwrap_or_default();
+    assert!(key.is_empty() || key.starts_with("-----BEGIN PUBLIC KEY-----"), "{} is not a PEM public key", src.display());
+    let dst = Path::new(&std::env::var("OUT_DIR").unwrap()).join("update-key.pub");
+    if std::fs::read_to_string(&dst).ok().as_deref() != Some(key.as_str()) {
+        std::fs::write(dst, key).unwrap();
+    }
+}
+
 fn main() {
     println!("cargo:rustc-env=SNELLAR_COMMIT={}", commit());
+    update_key();
     let mut files = Vec::new();
     qml_files(Path::new("qml"), &mut files);
     println!("cargo:rerun-if-changed=qml");

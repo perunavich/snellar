@@ -30,7 +30,7 @@ Popup {
     onClosed: Nav.keys = false
 
     Shortcut {
-        sequence: "Escape"
+        sequences: ["Escape", "Ctrl+/", "F1"]
         enabled: help.opened
         onActivated: help.close()
     }

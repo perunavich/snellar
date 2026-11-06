@@ -49,6 +49,6 @@ ListView {
             Text { width: parent.width; text: Words.subscribers(row.modelData.subtitle); color: Theme.text2; font.pixelSize: Theme.fsCaption; elide: Text.ElideRight }
         }
         HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: Nav.artist(row.modelData.id) }
+        Tap { onTapped: Nav.artist(row.modelData.id) }
     }
 }

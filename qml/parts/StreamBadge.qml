@@ -11,7 +11,9 @@ Text {
         if (!s || !s.codec) return []
         const out = [s.codec.toUpperCase()]
         if (s.bitrate > 0) out.push(qsTr("%1 kbps").arg(s.bitrate))
-        if (s.local) out.push(qsTr("Downloaded"))
+        const state = Api.downloadState(Api.current)
+        if (state === "downloading") out.push(qsTr("Downloading"))
+        else if (s.local || state === "downloaded") out.push(qsTr("Downloaded"))
         return out
     }
     readonly property string detail: {

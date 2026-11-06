@@ -484,6 +484,19 @@ impl Library {
         })
     }
 
+    pub fn downloaded(&self) -> Vec<TrackId> {
+        self.run(|db| {
+            let mut stmt = db.prepare_cached("SELECT track_id, path FROM downloads")?;
+            let rows =
+                stmt.query_map([], |r| Ok((TrackId::from(r.get::<_, String>(0)?.as_str()), PathBuf::from(r.get::<_, String>(1)?))))?;
+            rows.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .into_iter()
+        .filter(|(_, path)| path.is_file())
+        .map(|(id, _)| id)
+        .collect()
+    }
+
     pub fn forget_download(&self, id: &TrackId) {
         self.write(|db| db.execute("DELETE FROM downloads WHERE track_id = ?1", [id]).map(drop))
     }
@@ -500,14 +513,22 @@ impl Library {
     }
 
     pub fn playlists(&self) -> Vec<Playlist> {
+        self.playlists_by("p.id")
+    }
+
+    pub fn recent_playlists(&self) -> Vec<Playlist> {
+        self.playlists_by("COALESCE((SELECT MAX(added_at) FROM playlist_items WHERE playlist_id = p.id), p.created_at) DESC, p.id DESC")
+    }
+
+    fn playlists_by(&self, order: &str) -> Vec<Playlist> {
         self.run(|db| {
-            let mut stmt = db.prepare_cached(
+            let mut stmt = db.prepare_cached(&format!(
                 "SELECT p.id, p.name, p.description, p.cover, p.folder,
                     (SELECT COUNT(*) FROM playlist_items WHERE playlist_id = p.id),
                     (SELECT t.json FROM playlist_items i JOIN tracks t ON t.id = i.track_id
                      WHERE i.playlist_id = p.id ORDER BY i.position LIMIT 1)
-                 FROM playlists p ORDER BY p.id",
-            )?;
+                 FROM playlists p ORDER BY {order}"
+            ))?;
             let lists = stmt.query_map([], |r| {
                 let first: Option<Track> = r.get::<_, Option<String>>(6)?.and_then(|j| serde_json::from_str(&j).ok());
                 let cover = shown_cover(self.data.as_deref(), &r.get::<_, String>(3)?);
@@ -892,6 +913,36 @@ mod tests {
         l.delete_playlist(id).unwrap();
         assert!(l.playlist(id).is_none());
         assert!(l.playlists().is_empty());
+    }
+
+    #[test]
+    fn recent_playlists_put_the_last_one_added_to_first() {
+        let l = lib();
+        let (a, b, c) = (l.create_playlist("a").unwrap(), l.create_playlist("b").unwrap(), l.create_playlist("c").unwrap());
+        l.write(|db| db.execute_batch("UPDATE playlists SET created_at = 100"));
+        l.add_to_playlist(a, &[track("x")]).unwrap();
+        l.add_to_playlist(b, &[track("y")]).unwrap();
+        l.write(|db| db.execute("UPDATE playlist_items SET added_at = 300 WHERE playlist_id = ?1", [a]).map(drop));
+        l.write(|db| db.execute("UPDATE playlist_items SET added_at = 200 WHERE playlist_id = ?1", [b]).map(drop));
+        assert_eq!(l.recent_playlists().iter().map(|p| p.id).collect::<Vec<_>>(), [a, b, c]);
+        assert_eq!(l.playlists().iter().map(|p| p.id).collect::<Vec<_>>(), [a, b, c]);
+        l.write(|db| db.execute("UPDATE playlist_items SET added_at = 400 WHERE playlist_id = ?1", [b]).map(drop));
+        assert_eq!(l.recent_playlists().iter().map(|p| p.id).collect::<Vec<_>>(), [b, a, c]);
+    }
+
+    #[test]
+    fn a_download_counts_only_while_its_file_exists() {
+        let dir = std::env::temp_dir().join(format!("snellar-downloaded-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("song.opus");
+        std::fs::write(&file, b"x").unwrap();
+        let l = lib();
+        let id: TrackId = "a".into();
+        l.set_download(&id, &file, None);
+        assert_eq!(l.downloaded(), std::slice::from_ref(&id));
+        std::fs::remove_file(&file).unwrap();
+        assert!(l.downloaded().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

@@ -12,6 +12,7 @@ ApplicationWindow {
     visible: true
     title: Api.current ? Api.current.title + " · " + Theme.artists(Api.current) : "Snellar"
     color: "transparent"
+    flags: Theme.frameless ? (Qt.Window | Qt.FramelessWindowHint) : Qt.Window
     font.family: Theme.fontText
     font.pixelSize: Theme.fsBody
 
@@ -77,11 +78,16 @@ ApplicationWindow {
         } else if (action === "raise") bringUp()
         else if (action === "playPause") Api.toggle()
         else if (action === "next") Api.next()
-        else if (action === "quit") Qt.quit()
+        else if (action === "quit") {
+            quitting = true
+            Qt.quit()
+        }
     }
 
+    property bool quitting: false
+
     onClosing: close => {
-        if (!hidesOnClose) return
+        if (!hidesOnClose || quitting) return
         close.accepted = false
         hide()
     }
@@ -95,11 +101,20 @@ ApplicationWindow {
         target: Api
         function onSettingSaved(key, value) { if (key === "closeToBackground") win.closeToTray = !!value }
         function onTrayReadyChanged() { if (!Api.trayReady && !win.visible) win.bringUp() }
+        function onDesktopInfoChanged() { if (!win.argv.luma && Theme.desktopName === "gnome") wallpaper.reload() }
     }
 
     Item {
         id: stage
         anchors.fill: parent
+        layer.enabled: Theme.frameless && win.visibility === Window.Windowed
+        layer.samplerName: "src"
+        layer.effect: ShaderEffect {
+            property real wPx: width
+            property real hPx: height
+            property real radiusPx: Theme.windowRadius
+            fragmentShader: "../shaders/round.frag.qsb"
+        }
 
         TapHandler {
             acceptedButtons: Qt.BackButton | Qt.ForwardButton
@@ -136,6 +151,11 @@ ApplicationWindow {
             }
             Rectangle { anchors.fill: parent; color: Theme.window }
 
+            WindowDrag {
+                anchors.fill: parent
+                onDoubleTapped: frame.toggleMaximized()
+            }
+
             Sidebar {
                 id: sidebar
                 anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
@@ -158,6 +178,13 @@ ApplicationWindow {
                 ViewHost {
                     Behavior on anchors.topMargin { NumberAnimation { duration: Theme.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard } }
                     anchors { fill: parent; topMargin: Nav.canBack || Nav.canForward ? Theme.toolbarHeight : 0; bottomMargin: win.compact ? Theme.capsuleHeight + 2 * Theme.gap : 0 }
+                }
+
+                WindowDrag {
+                    anchors { left: parent.left; right: parent.right; top: parent.top }
+                    height: Theme.spaceXl
+                    visible: Theme.frameless
+                    onDoubleTapped: frame.toggleMaximized()
                 }
 
                 Row {
@@ -190,6 +217,7 @@ ApplicationWindow {
                     top: parent.top
                     bottom: parent.bottom
                     margins: Theme.gap
+                    topMargin: Theme.frameless ? Theme.windowBarHeight : Theme.gap
                 }
                 width: Theme.inspectorWidth
                 visible: !win.compact
@@ -198,6 +226,7 @@ ApplicationWindow {
             }
 
             PlayerCapsule {
+                id: capsule
                 anchors {
                     horizontalCenter: content.horizontalCenter
                     bottom: parent.bottom
@@ -216,9 +245,30 @@ ApplicationWindow {
         }
 
         Loader {
+            id: audioLoader
+            readonly property NowPlaying now: Nav.nowPlaying ? nowLoader.item as NowPlaying : null
             anchors.fill: parent
             active: Nav.audio || item !== null
-            source: "parts/AudioSheet.qml"
+            source: "parts/AudioPanel.qml"
+        }
+
+        Binding {
+            when: audioLoader.item !== null
+            target: audioLoader.item as AudioPanel
+            property: "dock"
+            value: audioLoader.now ? audioLoader.now.controls : win.compact ? capsule : column
+        }
+        Binding {
+            when: audioLoader.item !== null
+            target: audioLoader.item as AudioPanel
+            property: "button"
+            value: audioLoader.now ? audioLoader.now.soundButton : win.compact ? capsule.soundButton : column.soundButton
+        }
+        Binding {
+            when: audioLoader.item !== null
+            target: audioLoader.item as AudioPanel
+            property: "settle"
+            value: audioLoader.now ? audioLoader.now.p : 1
         }
 
         Rectangle {
@@ -282,6 +332,12 @@ ApplicationWindow {
                 bottom: parent.bottom
                 bottomMargin: win.compact ? Theme.capsuleHeight + Theme.gap * 2 : Theme.gap * 2
             }
+        }
+
+        WindowFrame {
+            id: frame
+            anchors.fill: parent
+            z: 8
         }
 
         Image {
@@ -377,7 +433,7 @@ ApplicationWindow {
         { group: qsTr("Navigation"), keys: ["Ctrl+L"], label: qsTr("Lyrics"), run: () => { Nav.tab = "lyrics"; Nav.nowPlaying = win.compact } },
         { group: qsTr("Navigation"), keys: ["Ctrl+N"], label: qsTr("New playlist"), run: () => sidebar.newPlaylist() },
         { group: qsTr("Navigation"), keys: ["Ctrl+,"], label: qsTr("Settings"), run: () => Nav.go("settings") },
-        { group: qsTr("Navigation"), keys: ["Escape"], label: qsTr("Close Now Playing or the audio sheet"), when: () => (Nav.audio || Nav.nowPlaying) && !Nudges.typing && !Nav.keys, run: () => { if (Nav.audio) Nav.audio = false; else if (Nav.nowPlaying) Nav.nowPlaying = false } },
+        { group: qsTr("Navigation"), keys: ["Escape"], label: qsTr("Close Now Playing or the audio panel"), when: () => (Nav.audio || Nav.nowPlaying) && !Nudges.typing && !Nav.keys && !Nav.picking, run: () => { if (Nav.audio) Nav.audio = false; else if (Nav.nowPlaying) Nav.nowPlaying = false } },
         { group: qsTr("Song lists"), keys: ["Up", "Down"], label: qsTr("Move between songs") },
         { group: qsTr("Song lists"), keys: ["Return"], label: qsTr("Play the song") },
         { group: qsTr("Song lists"), keys: ["Shift+Up", "Shift+Down"], label: qsTr("Select more songs") },
@@ -385,7 +441,7 @@ ApplicationWindow {
         { group: qsTr("Song lists"), keys: ["Menu", "Shift+F10"], label: qsTr("Song menu") },
         { group: qsTr("Song lists"), keys: ["Escape"], label: qsTr("Clear the selection") },
         { group: qsTr("Settings"), keys: ["Up", "Down"], label: qsTr("Move between sections") },
-        { group: qsTr("Help"), keys: ["Ctrl+/", "F1"], label: qsTr("Keyboard shortcuts"), run: () => Nav.keys = true },
+        { group: qsTr("Help"), keys: ["Ctrl+/", "F1"], label: qsTr("Keyboard shortcuts"), when: () => !Nav.keys, run: () => Nav.keys = true },
         { group: qsTr("Help"), keys: ["Ctrl+Shift+B"], label: qsTr("Report a bug"), global: true, run: () => bugReport.capture() }
     ]
 

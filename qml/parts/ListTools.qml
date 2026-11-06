@@ -46,7 +46,7 @@ Row {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: menu.popup(sortButton, 0, sortButton.height + Theme.spaceXs)
+            onClicked: menu.toggle(sortButton, 0, sortButton.height + Theme.spaceXs)
         }
     }
 

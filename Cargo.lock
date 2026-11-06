@@ -2051,9 +2051,10 @@ checksum = "d0d5d4b1981b8bbbb7aed204cae5726d683d5d6ac7e74ec54122ea28f315e7c8"
 
 [[package]]
 name = "snellar"
-version = "0.1.0-beta"
+version = "0.1.1-beta"
 dependencies = [
  "anyhow",
+ "base64",
  "cxx",
  "cxx-qt",
  "cxx-qt-build",
@@ -2084,7 +2085,7 @@ dependencies = [
 
 [[package]]
 name = "snellar-core"
-version = "0.1.0-beta"
+version = "0.1.1-beta"
 dependencies = [
  "anyhow",
  "dirs",
@@ -2097,7 +2098,7 @@ dependencies = [
 
 [[package]]
 name = "snellar-youtube"
-version = "0.1.0-beta"
+version = "0.1.1-beta"
 dependencies = [
  "anyhow",
  "base64",

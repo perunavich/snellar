@@ -60,6 +60,11 @@ pub enum Code {
     ProxyTimeout,
     ProxyBlocked,
     LibraryCorrupt,
+    UpdateNoRelease,
+    UpdateChecksum,
+    UpdateBroken,
+    UpdatePlace,
+    UpdateSignature,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,7 +85,7 @@ impl fmt::Display for Told {
     }
 }
 
-pub const ALL: [(Code, &str); 55] = [
+pub const ALL: [(Code, &str); 60] = [
     (Code::NetOffline, "the network is unreachable, or the request could not be sent"),
     (Code::NetDns, "the host name could not be resolved: no network, or DNS failed or is blocked"),
     (Code::NetConnect, "the host refused or reset the connection"),
@@ -136,6 +141,14 @@ pub const ALL: [(Code, &str); 55] = [
     (Code::ProxyTimeout, "a proxy is in use and no answer came through it in time"),
     (Code::ProxyBlocked, "a proxy is in use and the host answered 403 or 451 through it"),
     (Code::LibraryCorrupt, "the library file is not a readable database; it is left untouched"),
+    (Code::UpdateNoRelease, "the latest release does not name a version Snellar can read; nothing was fetched"),
+    (Code::UpdateChecksum, "the downloaded Snellar does not match the checksum of its release, the installed one stays"),
+    (Code::UpdateBroken, "the downloaded Snellar does not unpack, the installed one stays"),
+    (Code::UpdatePlace, "the new Snellar could not be written next to the installed one, the installed one stays"),
+    (
+        Code::UpdateSignature,
+        "the release's checksum file is not signed by the key built into this Snellar, or the signature is missing; nothing was fetched, the installed one stays",
+    ),
 ];
 
 impl Code {
@@ -196,6 +209,11 @@ impl Code {
             Code::ProxyTimeout => "proxy.timeout",
             Code::ProxyBlocked => "proxy.blocked",
             Code::LibraryCorrupt => "library.corrupt",
+            Code::UpdateNoRelease => "update.no_release",
+            Code::UpdateChecksum => "update.checksum",
+            Code::UpdateBroken => "update.broken",
+            Code::UpdatePlace => "update.place",
+            Code::UpdateSignature => "update.signature",
         }
     }
 

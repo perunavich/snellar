@@ -46,6 +46,14 @@ pub mod qobject {
         fn fetch_ytdlp(self: &Core);
 
         #[qinvokable]
+        #[cxx_name = "checkUpdate"]
+        fn check_update(self: &Core);
+
+        #[qinvokable]
+        #[cxx_name = "restartForUpdate"]
+        fn restart_for_update(self: &Core);
+
+        #[qinvokable]
         #[cxx_name = "refreshDesktop"]
         fn refresh_desktop(self: &Core);
 
@@ -85,6 +93,10 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "toolsChanged"]
         fn tools_changed(self: Pin<&mut Core>);
+
+        #[qsignal]
+        #[cxx_name = "updateChanged"]
+        fn update_changed(self: Pin<&mut Core>);
 
         #[qsignal]
         fn capture(self: Pin<&mut Core>, dir: QString);
@@ -188,6 +200,7 @@ fn apply(mut core: Pin<&mut qobject::Core>, ev: UiEvent) {
         UiEvent::Liked(v) => core.set_liked(v),
         UiEvent::History => core.history_changed(),
         UiEvent::Tools => core.tools_changed(),
+        UiEvent::Update => core.update_changed(),
         UiEvent::Modes { shuffle, repeat } => {
             core.as_mut().set_shuffle(shuffle);
             let r = serde_json::to_value(repeat).ok().and_then(|v| v.as_str().map(String::from));
@@ -252,6 +265,18 @@ impl qobject::Core {
     pub fn fetch_ytdlp(&self) {
         if let Some(app) = &self.rust().app {
             app.fetch_ytdlp();
+        }
+    }
+
+    pub fn check_update(&self) {
+        if let Some(app) = &self.rust().app {
+            app.check_update();
+        }
+    }
+
+    pub fn restart_for_update(&self) {
+        if let Some(app) = &self.rust().app {
+            app.restart_for_update();
         }
     }
 

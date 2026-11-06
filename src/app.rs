@@ -115,6 +115,8 @@ impl App {
     pub fn start(ui: Ui) -> Arc<App> {
         let app = App::start_in(ui, product::data_dir(), product::cache_dir());
         RUNNING.set(app.clone()).ok();
+        let updates = app.clone();
+        app.rt.spawn(async move { updates.backend().await.start_updates() });
         let quit = app.ui.clone();
         app.rt.spawn(async move {
             let Ok(mut term) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) else { return };
@@ -190,6 +192,20 @@ impl App {
             };
             (app.ui)(UiEvent::Toast(toast));
             (app.ui)(UiEvent::Tools);
+        });
+    }
+
+    pub fn check_update(self: &Arc<Self>) {
+        let app = self.clone();
+        self.rt.spawn(async move { app.backend().await.check_update() });
+    }
+
+    pub fn restart_for_update(self: &Arc<Self>) {
+        let app = self.clone();
+        self.rt.spawn(async move {
+            if app.backend().await.restart_for_update() {
+                (app.ui)(UiEvent::TrayAction("quit".into()));
+            }
         });
     }
 

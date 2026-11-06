@@ -180,9 +180,14 @@ RiffMenu {
         onTriggered: Api.call("removeQueued", { index: menu.queueIndex, id: menu.entity.id })
     }
     MenuRow {
-        text: qsTr("Download")
+        readonly property var states: menu.songs.map(t => Api.downloadState(t))
+        readonly property bool waiting: states.indexOf("") < 0
+        readonly property bool busy: waiting && states.indexOf("downloading") >= 0
+        text: busy ? qsTr("Downloading") : waiting ? qsTr("Downloaded") : qsTr("Download")
         shown: menu.isTrack || menu.isTracks
-        onTriggered: Api.call("download", { tracks: menu.songs })
+        available: !waiting
+        marked: waiting && !busy
+        onTriggered: Api.download(menu.songs)
     }
 
     MenuRow {
@@ -211,10 +216,5 @@ RiffMenu {
         shown: menu.isPlaylist
         divider: true
         onTriggered: Nav.rename(menu.entity.id)
-    }
-    MenuRow {
-        text: qsTr("Delete")
-        shown: menu.isPlaylist
-        onTriggered: Api.deletePlaylist(menu.entity)
     }
 }

@@ -180,7 +180,7 @@ Item {
                         Text { width: parent.width; text: Theme.artists(item.modelData); color: Theme.text2; font.pixelSize: Theme.fsCaption; elide: Text.ElideRight }
                     }
                     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: Api.play(view.wave, item.index, "wave") }
+                    Tap { onTapped: Api.play(view.wave, item.index, "wave") }
                 }
             }
         }

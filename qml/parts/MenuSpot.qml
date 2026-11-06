@@ -10,12 +10,23 @@ Loader {
     property var playlistId: null
     active: false
 
-    function open(at, x, y) {
+    function toggle(at, x, y) {
         if (!entity) return
         active = true
         const menu = item as EntityMenu
-        menu.popup(at, x, y)
+        menu.toggle(at, x, y)
     }
+
+    function context(at, x, y) {
+        if (!entity) return
+        active = true
+        const menu = item as EntityMenu
+        menu.context(at, x, y)
+    }
+
+    function heldBy(at) { return !!item && (item as EntityMenu).heldBy(at) }
+
+    function close() { if (item) (item as EntityMenu).close() }
 
     sourceComponent: EntityMenu {
         kind: spot.kind

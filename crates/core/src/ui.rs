@@ -25,19 +25,25 @@ pub struct Toast {
     pub arg: String,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub detail: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub track: String,
 }
 
 impl Toast {
     pub fn new(code: Code) -> Toast {
-        Toast { code, cause: None, arg: String::new(), detail: String::new() }
+        Toast { code, cause: None, arg: String::new(), detail: String::new(), track: String::new() }
     }
 
     pub fn failed(code: Code, e: &anyhow::Error) -> Toast {
-        Toast { code, cause: Some(Code::of(e)), arg: String::new(), detail: format!("{e:#}") }
+        Toast { code, cause: Some(Code::of(e)), arg: String::new(), detail: format!("{e:#}"), track: String::new() }
     }
 
     pub fn arg(self, arg: impl Into<String>) -> Toast {
         Toast { arg: arg.into(), ..self }
+    }
+
+    pub fn track(self, track: &TrackId) -> Toast {
+        Toast { track: track.to_string(), ..self }
     }
 
     pub fn json(&self) -> String {
@@ -72,6 +78,7 @@ pub enum UiEvent {
     Liked(bool),
     History,
     Tools,
+    Update,
     Modes { shuffle: bool, repeat: Repeat },
     Toast(Toast),
     PlayFailure(Option<PlayFailure>),

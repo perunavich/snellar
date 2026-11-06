@@ -8,6 +8,8 @@ Item {
     readonly property real p: spring.value
     readonly property bool covering: p > 0.98
     readonly property var track: Api.current
+    readonly property Item controls: deck
+    readonly property Item soundButton: sound
 
     visible: p > 0.002
     opacity: Math.min(1, p * 1.4)
@@ -81,10 +83,7 @@ Item {
 
                     TapHandler {
                         enabled: Api.albumOf(np.track).length > 0
-                        onTapped: {
-                            Nav.nowPlaying = false
-                            Nav.album(Api.albumOf(np.track))
-                        }
+                        onTapped: Nav.album(Api.albumOf(np.track))
                     }
                     HoverHandler { enabled: Api.albumOf(np.track).length > 0; cursorShape: Qt.PointingHandCursor }
                 }
@@ -115,13 +114,14 @@ Item {
                     active: Api.liked
                     onClicked: Api.like(np.track)
                 }
-                IconButton { icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
+                QuickAdd { }
+                IconButton { id: sound; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
                 IconButton {
                     id: more
                     icon: "more"
                     tip: qsTr("More")
                     visible: !!np.track
-                    onClicked: menu.open(more, 0, more.height)
+                    onClicked: menu.toggle(more, 0, more.height)
                     MenuSpot { id: menu; entity: np.track }
                 }
                 VolumeControl { anchors.verticalCenter: parent.verticalCenter; barWidth: Theme.volumeWide }
@@ -135,7 +135,7 @@ Item {
                 right: parent.right
                 rightMargin: Theme.space2xl + Theme.spaceLg
                 top: parent.top
-                topMargin: Theme.spaceXl + (Theme.controlLg - Theme.segmentHeight) / 2
+                topMargin: Theme.frameless ? Theme.windowBarHeight : Theme.spaceXl + (Theme.controlLg - Theme.segmentHeight) / 2
                 bottom: parent.bottom
                 bottomMargin: Theme.space2xl
             }

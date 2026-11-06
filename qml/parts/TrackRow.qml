@@ -40,7 +40,7 @@ FocusScope {
         if (live) Api.toggle()
         else play()
     }
-    function openMenu(x, y) { menu.open(row, x, y) }
+    function openMenu(x, y) { spot.context(row, x, y) }
 
     Keys.onReturnPressed: play()
     Keys.onEnterPressed: play()
@@ -73,18 +73,16 @@ FocusScope {
     Timer { interval: Theme.debounce; running: row.hovered; onTriggered: Api.prefetch(row.track) }
     TapHandler {
         id: tap
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: (p, button) => {
             row.forceActiveFocus()
             if (tapCount === 1) row.pickRequested(tap.point.modifiers)
             if (tapCount === (row.inQueue ? 1 : 2)) row.play()
         }
     }
-    TapHandler {
-        acceptedButtons: Qt.RightButton
-        onTapped: p => {
-            if (!row.selected) row.pickRequested(Qt.NoModifier)
-            row.openMenu(p.position.x, p.position.y)
-        }
+    MenuTap {
+        menu: spot
+        onOpening: if (!row.selected) row.pickRequested(Qt.NoModifier)
     }
 
     Item {
@@ -237,11 +235,11 @@ FocusScope {
         tip: row.removable ? qsTr("Remove") : qsTr("More")
         opacity: row.hovered ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: Theme.hover } }
-        onClicked: row.removable ? row.removeRequested() : row.openMenu(more.x, more.y + more.height)
+        onClicked: row.removable ? row.removeRequested() : spot.toggle(more, 0, more.height)
     }
 
     MenuSpot {
-        id: menu
+        id: spot
         kind: row.group.length > 1 ? "tracks" : "track"
         entity: row.group.length > 1 ? row.group : row.track
         queueIndex: row.inQueue ? row.rank : -1

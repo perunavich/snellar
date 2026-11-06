@@ -17,6 +17,7 @@ Item {
         renaming = true
     }
     onListChanged: Qt.callLater(renameAsked)
+    onRenamingChanged: if (renaming) page.contentY = page.originY
     Connections { target: Nav; function onRenamingChanged() { view.renameAsked() } }
 
     Fetch { id: res; method: "playlist"; args: ({ id: view.params.id }); ready: view.params.id !== undefined; live: true }
@@ -47,6 +48,7 @@ Item {
     }
 
     TrackPage {
+        id: page
         anchors.fill: parent
         removable: true
         dated: true
@@ -68,34 +70,32 @@ Item {
                 title: view.list ? view.list.name : ""
                 subtitle: view.list ? qsTr("%n song(s)", "", view.list.count) : ""
                 description: view.list ? view.list.description : ""
+                editingTitle: view.renaming
+                onTitleDoubleTapped: view.renaming = true
+                titleEditor: TextField {
+                    anchors.fill: parent
+                    padding: 0
+                    verticalAlignment: TextInput.AlignVCenter
+                    color: Theme.text
+                    placeholderText: qsTr("Playlist name")
+                    placeholderTextColor: Theme.text3
+                    selectByMouse: true
+                    font.family: Theme.font
+                    font.pixelSize: Theme.fsHero
+                    font.weight: Font.Bold
+                    background: Rectangle {
+                        anchors { fill: parent; leftMargin: -Theme.spaceSm; rightMargin: -Theme.spaceSm }
+                        radius: Theme.rMd
+                        color: Theme.fillRaised
+                    }
+                    onVisibleChanged: if (visible) { text = view.list.name; selectAll(); forceActiveFocus() }
+                    onAccepted: view.commit(text)
+                    onActiveFocusChanged: if (!activeFocus && view.renaming) view.commit(text)
+                    Keys.onEscapePressed: view.renaming = false
+                }
 
                 PlayButtons { tracks: sorter.shown; from: view.from; origin: view.origin }
-                PillButton { text: qsTr("Rename"); icon: "more"; onClicked: view.renaming = true }
                 PillButton { text: qsTr("Edit details"); onClicked: editor.edit(view.list) }
-                PillButton { text: qsTr("Change cover"); icon: "folder"; onClicked: editor.chooseCover(view.list) }
-                PillButton {
-                    visible: !!view.list && view.list.cover.length > 0
-                    text: qsTr("Reset cover")
-                    onClicked: Api.call("editPlaylist", { id: view.list.id, cover: "" }, () => Api.libraryChanged())
-                }
-                PillButton {
-                    text: qsTr("Delete")
-                    icon: "trash"
-                    onClicked: Api.deletePlaylist(view.list)
-                }
-            }
-
-            TextField {
-                visible: view.renaming
-                width: Theme.segmentWide
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.fsLargeTitle
-                background: Rectangle { radius: Theme.rMd; color: Theme.fillRaised }
-                onVisibleChanged: if (visible) { text = view.list.name; forceActiveFocus() }
-                onAccepted: view.commit(text)
-                onActiveFocusChanged: if (!activeFocus && view.renaming) view.commit(text)
-                Keys.onEscapePressed: view.renaming = false
             }
 
             ListTools { sorter: sorter; visible: !!view.list && view.list.count > 0 }

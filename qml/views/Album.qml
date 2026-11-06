@@ -49,7 +49,7 @@ Item {
                     tip: qsTr("More")
                     size: Theme.controlLg
                     filledBg: true
-                    onClicked: menu.open(more, 0, more.height)
+                    onClicked: menu.toggle(more, 0, more.height)
                     MenuSpot { id: menu; kind: view.remote ? "remote" : "album"; entity: view.album }
                 }
             }

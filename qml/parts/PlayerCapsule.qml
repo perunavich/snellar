@@ -4,6 +4,7 @@ import Snellar
 Item {
     id: capsule
     readonly property var track: Api.current
+    readonly property Item soundButton: sound
     readonly property bool failed: !!Api.failure && !!track && Api.failure.id === track.id && !Api.loading
 
     implicitHeight: Theme.capsuleHeight
@@ -16,11 +17,8 @@ Item {
         width: Math.max(Theme.capsuleInfo, capsule.width * 0.28)
         height: Theme.capsuleArt
 
-        TapHandler {
-            acceptedButtons: Qt.RightButton
-            onTapped: p => menu.open(left, p.position.x, p.position.y)
-        }
-        MenuSpot { id: menu; entity: capsule.track }
+        MenuTap { menu: spot }
+        MenuSpot { id: spot; entity: capsule.track }
 
         Cover {
             id: art
@@ -29,7 +27,7 @@ Item {
             radius: Theme.rArtM
             px: 112
             url: capsule.track ? capsule.track.thumb : ""
-            TapHandler { enabled: !!capsule.track; onTapped: Nav.nowPlaying = true }
+            Tap { enabled: !!capsule.track; onTapped: Nav.nowPlaying = true }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
 
@@ -43,7 +41,7 @@ Item {
                 font.pixelSize: Theme.fsHeadline
                 font.weight: Font.DemiBold
 
-                TapHandler { enabled: Api.albumOf(capsule.track).length > 0; onTapped: Nav.album(Api.albumOf(capsule.track)) }
+                Tap { enabled: Api.albumOf(capsule.track).length > 0; onTapped: Nav.album(Api.albumOf(capsule.track)) }
                 HoverHandler { enabled: Api.albumOf(capsule.track).length > 0; cursorShape: Qt.PointingHandCursor }
             }
             ArtistLinks { width: parent.width; visible: !capsule.failed; artists: capsule.track ? capsule.track.artists : [] }
@@ -95,12 +93,13 @@ Item {
 
     Row {
         id: right
-        anchors { right: parent.right; rightMargin: Theme.spaceLg; verticalCenter: parent.verticalCenter }
+        anchors { right: parent.right; rightMargin: Theme.spaceMd; verticalCenter: parent.verticalCenter }
         spacing: Theme.spaceXs
 
+        QuickAdd { }
         IconButton { icon: "queue"; tip: qsTr("Queue"); onClicked: { Nav.tab = "next"; Nav.nowPlaying = true } }
         IconButton { icon: "lyrics"; tip: qsTr("Lyrics"); onClicked: { Nav.tab = "lyrics"; Nav.nowPlaying = true } }
-        IconButton { icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
+        IconButton { id: sound; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
         VolumeControl {
             anchors.verticalCenter: parent.verticalCenter
             showBar: capsule.width >= Theme.capsuleWide

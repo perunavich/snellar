@@ -6,61 +6,83 @@ Item {
     property string label
     property real value: 0
     property real range: 12
+    readonly property bool changed: value !== 0
+    readonly property bool hot: area.containsMouse || area.pressed
+    readonly property real half: (Theme.eqHeight - Theme.knob) / 2
+    readonly property real zero: Theme.eqHeight / 2
+    readonly property real knobY: zero - value / range * half
     signal moved(real v)
 
-    width: Theme.controlLg
-    height: Theme.eqHeight
+    implicitWidth: Theme.eqPre
+    implicitHeight: Theme.eqHeight + Theme.spaceSm + caption.implicitHeight
 
-    readonly property real half: (track.height - Theme.spaceLg) / 2
-
-    Text {
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: (band.value > 0 ? "+" : "") + band.value.toFixed(1)
-        color: Theme.text2
-        font.pixelSize: Theme.fsCaption
-        font.family: Theme.fontMono
-    }
+    function db(v) { return (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(v % 1 ? 1 : 0) }
 
     Rectangle {
         id: track
-        anchors { top: parent.top; topMargin: Theme.spaceXl; bottom: caption.top; bottomMargin: Theme.spaceSm; horizontalCenter: parent.horizontalCenter }
-        width: Theme.eqTrack
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Theme.scrubTrack
+        height: Theme.eqHeight
         radius: width / 2
-        color: Theme.fillRaised
-        clip: true
+        color: Theme.fillStrong
+    }
 
-        Rectangle {
-            width: parent.width
-            radius: width / 2
-            color: Theme.accent
-            opacity: 0.9
-            readonly property real offset: band.value / band.range * band.half
-            y: parent.height / 2 - Math.max(offset, 0)
-            height: Math.abs(offset)
-        }
-        Rectangle {
-            anchors { verticalCenter: parent.verticalCenter; horizontalCenter: parent.horizontalCenter }
-            width: Theme.spaceMd
-            height: Theme.ring
-            color: Theme.text
-            opacity: 0.4
-        }
+    Rectangle {
+        x: track.x
+        y: Math.min(band.knobY, band.zero)
+        width: track.width
+        height: Math.abs(band.knobY - band.zero)
+        visible: band.changed
+        radius: width / 2
+        color: Theme.accent
+    }
+
+    Rectangle {
+        anchors.centerIn: knob
+        width: Theme.knob + 2 * Theme.spaceXs
+        height: width
+        radius: width / 2
+        visible: band.hot
+        color: Theme.fillPress
+    }
+
+    Rectangle {
+        id: knob
+        x: (band.width - width) / 2
+        y: band.knobY - height / 2
+        width: Theme.knob
+        height: width
+        radius: width / 2
+        color: band.changed ? Theme.accent : Theme.text
+    }
+
+    Text {
+        anchors { horizontalCenter: knob.horizontalCenter; bottom: knob.top; bottomMargin: Theme.spaceXs }
+        visible: band.hot
+        text: qsTr("%1 dB").arg(band.db(band.value))
+        color: Theme.text
+        font.family: Theme.fontMono
+        font.pixelSize: Theme.fsCaption
     }
 
     Text {
         id: caption
         anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter }
         text: band.label
-        color: Theme.text2
+        color: band.hot ? Theme.text : Theme.text3
         font.pixelSize: Theme.fsCaption
+        font.weight: Font.Medium
     }
 
     MouseArea {
-        anchors.fill: track
+        id: area
+        width: parent.width
+        height: Theme.eqHeight
+        hoverEnabled: true
         preventStealing: true
         cursorShape: Qt.PointingHandCursor
         function apply(y) {
-            const v = (track.height / 2 - y) / band.half * band.range
+            const v = (band.zero - y) / band.half * band.range
             band.moved(Math.round(Math.max(-band.range, Math.min(band.range, v)) * 2) / 2)
         }
         onPressed: m => apply(m.y)

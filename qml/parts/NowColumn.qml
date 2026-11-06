@@ -4,6 +4,7 @@ import Snellar
 Item {
     id: column
     readonly property var track: Api.current
+    readonly property Item soundButton: sound
 
     Glass { anchors.fill: parent }
 
@@ -22,11 +23,8 @@ Item {
             px: 640
             url: column.track ? column.track.thumb : ""
 
-            TapHandler { enabled: !!column.track; onTapped: Nav.nowPlaying = true }
-            TapHandler {
-                acceptedButtons: Qt.RightButton
-                onTapped: p => menu.open(art, p.position.x, p.position.y)
-            }
+            Tap { enabled: !!column.track; onTapped: Nav.nowPlaying = true }
+            MenuTap { menu: spot }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
 
@@ -34,7 +32,7 @@ Item {
             width: parent.width
             height: info.height
 
-            MenuSpot { id: menu; entity: column.track }
+            MenuSpot { id: spot; entity: column.track }
 
             IconButton {
                 id: more
@@ -43,7 +41,7 @@ Item {
                 size: Theme.controlSm
                 icon: "more"
                 tip: qsTr("More")
-                onClicked: menu.open(more, 0, more.height)
+                onClicked: spot.toggle(more, 0, more.height)
             }
 
             Column {
@@ -59,7 +57,7 @@ Item {
                     font.weight: Font.DemiBold
                     font.family: Theme.font
 
-                    TapHandler { enabled: Api.albumOf(column.track).length > 0; onTapped: Nav.album(Api.albumOf(column.track)) }
+                    Tap { enabled: Api.albumOf(column.track).length > 0; onTapped: Nav.album(Api.albumOf(column.track)) }
                     HoverHandler { enabled: Api.albumOf(column.track).length > 0; cursorShape: Qt.PointingHandCursor }
                 }
                 ArtistLinks {
@@ -91,8 +89,8 @@ Item {
                 visible: !!column.track
 
                 IconButton { size: Theme.controlSm; icon: Api.liked ? "heartFill" : "heart"; tip: Api.liked ? qsTr("Unlike") : qsTr("Like"); active: Api.liked; onClicked: Api.like(column.track) }
-                IconButton { size: Theme.controlSm; icon: "download"; tip: qsTr("Download"); onClicked: Api.call("download", { track: column.track }) }
-                IconButton { size: Theme.controlSm; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
+                QuickAdd { size: Theme.controlSm }
+                IconButton { id: sound; size: Theme.controlSm; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
                 IconButton { size: Theme.controlSm; icon: "expand"; tip: qsTr("Now Playing"); onClicked: Nav.nowPlaying = true }
             }
 

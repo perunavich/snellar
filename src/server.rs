@@ -65,6 +65,7 @@ fn event_json(event: &UiEvent) -> Option<(&'static str, Value)> {
         UiEvent::Liked(v) => ("liked", json!(v)),
         UiEvent::History => ("history", Value::Null),
         UiEvent::Tools => ("tools", Value::Null),
+        UiEvent::Update => ("update", Value::Null),
         UiEvent::Modes { shuffle, repeat } => ("modes", json!({ "shuffle": shuffle, "repeat": repeat })),
         UiEvent::Toast(t) => ("toast", json!(t)),
         UiEvent::PlayFailure(f) => ("failure", json!(f)),

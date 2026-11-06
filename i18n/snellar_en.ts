@@ -63,73 +63,73 @@
 <context>
     <name>Api</name>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Video</source>
         <translation>Video</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Song</source>
         <translation>Song</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Album</source>
         <translation>Album</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Artist</source>
         <translation>Artist</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="177"/>
+        <location filename="../qml/Api.qml" line="198"/>
         <source>Playlist</source>
         <translation>Playlist</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="217"/>
+        <location filename="../qml/Api.qml" line="238"/>
         <source>Added to %1</source>
         <translation>Added to %1</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="217"/>
+        <location filename="../qml/Api.qml" line="238"/>
         <source>Already in %1</source>
         <translation>Already in %1</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="245"/>
+        <location filename="../qml/Api.qml" line="298"/>
         <source>Link copied</source>
         <translation>Link copied</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="254"/>
+        <location filename="../qml/Api.qml" line="307"/>
         <source>Deleted %1</source>
         <translation>Deleted %1</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="254"/>
-        <location filename="../qml/Api.qml" line="272"/>
+        <location filename="../qml/Api.qml" line="307"/>
+        <location filename="../qml/Api.qml" line="325"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="272"/>
+        <location filename="../qml/Api.qml" line="325"/>
         <source>Disliked. Recommendations will avoid it</source>
         <translation>Disliked. Recommendations will avoid it</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="319"/>
+        <location filename="../qml/Api.qml" line="373"/>
         <source>Continue %1 in Snellar?</source>
         <translation>Continue %1 in Snellar?</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="320"/>
+        <location filename="../qml/Api.qml" line="374"/>
         <source>Continue</source>
         <translation>Continue</translation>
     </message>
     <message>
-        <location filename="../qml/Api.qml" line="320"/>
+        <location filename="../qml/Api.qml" line="374"/>
         <source>Not now</source>
         <translation>Not now</translation>
     </message>
@@ -213,41 +213,38 @@
     </message>
 </context>
 <context>
-    <name>AudioSheet</name>
+    <name>AudioPanel</name>
     <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="62"/>
-        <source>Audio</source>
-        <translation>Audio</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="67"/>
-        <source>On</source>
-        <translation>On</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="67"/>
-        <source>Off</source>
-        <translation>Off</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="69"/>
-        <source>Close</source>
-        <translation>Close</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="78"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="101"/>
         <source>Equalizer</source>
         <translation>Equalizer</translation>
     </message>
     <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="78"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="101"/>
         <source>Effects</source>
         <translation>Effects</translation>
     </message>
     <message>
-        <location filename="../qml/parts/AudioSheet.qml" line="95"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="109"/>
+        <location filename="../qml/parts/AudioPanel.qml" line="158"/>
         <source>Reset</source>
         <translation>Reset</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/AudioPanel.qml" line="118"/>
+        <source>Enabled</source>
+        <comment>equalizer and effects switch</comment>
+        <translation>Enabled</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/AudioPanel.qml" line="156"/>
+        <source>Reset the equalizer and effects?</source>
+        <translation>Reset the equalizer and effects?</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/AudioPanel.qml" line="157"/>
+        <source>Every band and effect goes back to its default.</source>
+        <translation>Every band and effect goes back to its default.</translation>
     </message>
 </context>
 <context>
@@ -484,40 +481,42 @@
 <context>
     <name>Discover</name>
     <message>
-        <location filename="../qml/views/Discover.qml" line="41"/>
+        <location filename="../qml/views/Discover.qml" line="42"/>
         <source>Home</source>
         <translation>Home</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="50"/>
+        <location filename="../qml/views/Discover.qml" line="51"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="98"/>
+        <location filename="../qml/views/Discover.qml" line="134"/>
         <source>Wave</source>
         <translation>Wave</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="99"/>
+        <location filename="../qml/views/Discover.qml" line="135"/>
         <source>Up next, picked for you</source>
         <translation>Up next, picked for you</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="106"/>
+        <location filename="../qml/views/Discover.qml" line="142"/>
         <source>New mix</source>
         <translation>New mix</translation>
     </message>
     <message>
-        <location filename="../qml/views/Discover.qml" line="154"/>
+        <location filename="../qml/views/Discover.qml" line="190"/>
         <source>Jump back in</source>
         <translation>Jump back in</translation>
     </message>
     <message>
+        <location filename="../qml/views/Discover.qml" line="82"/>
         <source>Try again</source>
         <translation>Try again</translation>
     </message>
     <message>
+        <location filename="../qml/views/Discover.qml" line="93"/>
         <source>Nothing to show yet. Refresh, or search for something to play.</source>
         <translation>Nothing to show yet. Refresh, or search for something to play.</translation>
     </message>
@@ -642,70 +641,89 @@
         <translation>Remove from queue</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="183"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="186"/>
         <source>Download</source>
         <translation>Download</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="189"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="194"/>
         <source>Go to album</source>
         <translation>Go to album</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="196"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="201"/>
         <source>Go to artist</source>
         <translation>Go to artist</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="204"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="209"/>
         <source>Copy link</source>
         <translation>Copy link</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="210"/>
+        <location filename="../qml/parts/EntityMenu.qml" line="215"/>
         <source>Rename</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EntityMenu.qml" line="216"/>
-        <source>Delete</source>
-        <translation>Delete</translation>
+        <location filename="../qml/parts/EntityMenu.qml" line="186"/>
+        <source>Downloading</source>
+        <translation>Downloading</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/EntityMenu.qml" line="186"/>
+        <source>Downloaded</source>
+        <translation>Downloaded</translation>
+    </message>
+</context>
+<context>
+    <name>EqBand</name>
+    <message>
+        <location filename="../qml/parts/EqBand.qml" line="62"/>
+        <source>%1 dB</source>
+        <translation>%1 dB</translation>
     </message>
 </context>
 <context>
     <name>EqPane</name>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="12"/>
+        <location filename="../qml/parts/EqPane.qml" line="13"/>
         <source>Flat</source>
         <translation>Flat</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="13"/>
+        <location filename="../qml/parts/EqPane.qml" line="14"/>
         <source>Bass boost</source>
         <translation>Bass boost</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="14"/>
+        <location filename="../qml/parts/EqPane.qml" line="15"/>
         <source>Vocal</source>
         <translation>Vocal</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="15"/>
+        <location filename="../qml/parts/EqPane.qml" line="16"/>
         <source>Treble</source>
         <translation>Treble</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="16"/>
+        <location filename="../qml/parts/EqPane.qml" line="17"/>
         <source>Loudness</source>
         <translation>Loudness</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="17"/>
+        <location filename="../qml/parts/EqPane.qml" line="18"/>
         <source>Electronic</source>
         <translation>Electronic</translation>
     </message>
     <message>
-        <location filename="../qml/parts/EqPane.qml" line="54"/>
+        <location filename="../qml/parts/EqPane.qml" line="42"/>
+        <location filename="../qml/parts/EqPane.qml" line="74"/>
+        <source>Custom</source>
+        <translation>Custom</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/EqPane.qml" line="123"/>
         <source>Pre</source>
         <translation>Pre</translation>
     </message>
@@ -713,40 +731,33 @@
 <context>
     <name>ErrorState</name>
     <message>
-        <location filename="../qml/parts/ErrorState.qml" line="20"/>
-        <source>You are offline</source>
-        <translation>You are offline</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/ErrorState.qml" line="30"/>
+        <location filename="../qml/parts/ErrorState.qml" line="31"/>
         <source>Snellar will try again when the connection is back</source>
         <translation>Snellar will try again when the connection is back</translation>
     </message>
     <message>
-        <location filename="../qml/parts/ErrorState.qml" line="36"/>
+        <location filename="../qml/parts/ErrorState.qml" line="37"/>
         <source>Try again</source>
         <translation>Try again</translation>
     </message>
     <message>
+        <location filename="../qml/parts/ErrorState.qml" line="21"/>
         <source>Still waiting for an answer</source>
         <translation>Still waiting for an answer</translation>
     </message>
     <message>
+        <location filename="../qml/parts/ErrorState.qml" line="31"/>
         <source>Snellar will try again soon</source>
         <translation>Snellar will try again soon</translation>
     </message>
     <message>
+        <location filename="../qml/parts/ErrorState.qml" line="37"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
 </context>
 <context>
     <name>Errors</name>
-    <message>
-        <location filename="../qml/Errors.qml" line="7"/>
-        <source>No connection. Check your network.</source>
-        <translation>No connection. Check your network.</translation>
-    </message>
     <message>
         <location filename="../qml/Errors.qml" line="11"/>
         <source>The service took too long to answer</source>
@@ -758,199 +769,184 @@
         <translation>The service refused the request</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="14"/>
-        <source>Too many requests, try again in a minute</source>
-        <translation>Too many requests, try again in a minute</translation>
-    </message>
-    <message>
-        <location filename="../qml/Errors.qml" line="15"/>
-        <source>The service is having problems, try again later</source>
-        <translation>The service is having problems, try again later</translation>
-    </message>
-    <message>
-        <location filename="../qml/Errors.qml" line="16"/>
+        <location filename="../qml/Errors.qml" line="22"/>
         <source>YouTube answered in an unexpected way</source>
         <translation>YouTube answered in an unexpected way</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="17"/>
+        <location filename="../qml/Errors.qml" line="23"/>
         <source>This track is not available</source>
         <translation>This track is not available</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="18"/>
+        <location filename="../qml/Errors.qml" line="24"/>
         <source>yt-dlp is not installed</source>
         <translation>yt-dlp is not installed</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="19"/>
+        <location filename="../qml/Errors.qml" line="25"/>
         <source>yt-dlp could not get the track</source>
         <translation>yt-dlp could not get the track</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="22"/>
+        <location filename="../qml/Errors.qml" line="28"/>
         <source>GNOME could not set up glass. Nothing else changed.</source>
         <translation>GNOME could not set up glass. Nothing else changed.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="23"/>
+        <location filename="../qml/Errors.qml" line="29"/>
         <source>Blur my Shell was not installed, so nothing changed</source>
         <translation>Blur my Shell was not installed, so nothing changed</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="24"/>
+        <location filename="../qml/Errors.qml" line="30"/>
         <source>GNOME could not put the settings back. You can remove Blur my Shell from the Extensions app.</source>
         <translation>GNOME could not put the settings back. You can remove Blur my Shell from the Extensions app.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="25"/>
+        <location filename="../qml/Errors.qml" line="31"/>
         <source>The downloaded yt-dlp failed its checksum, so it was not installed</source>
         <translation>The downloaded yt-dlp failed its checksum, so it was not installed</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="26"/>
+        <location filename="../qml/Errors.qml" line="32"/>
         <source>Downloads need yt-dlp and Snellar could not get it. Check your connection and try again. Playing music is not affected.</source>
         <translation>Downloads need yt-dlp and Snellar could not get it. Check your connection and try again. Playing music is not affected.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="27"/>
+        <location filename="../qml/Errors.qml" line="33"/>
         <source>The library is busy in another program</source>
         <translation>The library is busy in another program</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="28"/>
+        <location filename="../qml/Errors.qml" line="34"/>
         <source>The library was saved by a newer Snellar</source>
         <translation>The library was saved by a newer Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="29"/>
+        <location filename="../qml/Errors.qml" line="41"/>
         <source>The library cannot be read or written</source>
         <translation>The library cannot be read or written</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="30"/>
+        <location filename="../qml/Errors.qml" line="42"/>
         <source>The audio player (mpv) failed</source>
         <translation>The audio player (mpv) failed</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="31"/>
+        <location filename="../qml/Errors.qml" line="43"/>
         <source>Invalid request</source>
         <translation>Invalid request</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="32"/>
+        <location filename="../qml/Errors.qml" line="44"/>
         <source>Unknown request</source>
         <translation>Unknown request</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="33"/>
+        <location filename="../qml/Errors.qml" line="45"/>
         <source>It is no longer there</source>
         <translation>It is no longer there</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="35"/>
+        <location filename="../qml/Errors.qml" line="47"/>
         <source>This source cannot do that</source>
         <translation>This source cannot do that</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="36"/>
+        <location filename="../qml/Errors.qml" line="48"/>
         <source>Audio effects were reset</source>
         <translation>Audio effects were reset</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="37"/>
+        <location filename="../qml/Errors.qml" line="49"/>
         <source>mpv stopped, it will restart on the next play</source>
         <translation>mpv stopped, it will restart on the next play</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="38"/>
+        <location filename="../qml/Errors.qml" line="50"/>
         <source>This image cannot be a cover: use a PNG, JPEG or WebP file up to 20 MB</source>
         <translation>This image cannot be a cover: use a PNG, JPEG or WebP file up to 20 MB</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="39"/>
+        <location filename="../qml/Errors.qml" line="51"/>
         <source>The service does not show this playlist without signing in: it may be private. Export it to a CSV file with Exportify (Spotify) or TuneMyMusic (any service) and choose that file here.</source>
         <translation>The service does not show this playlist without signing in: it may be private. Export it to a CSV file with Exportify (Spotify) or TuneMyMusic (any service) and choose that file here.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="40"/>
+        <location filename="../qml/Errors.qml" line="52"/>
         <source>Snellar could not read the songs on this page. Export the playlist to a CSV file with Exportify (Spotify) or TuneMyMusic (any service) and choose that file here.</source>
         <translation>Snellar could not read the songs on this page. Export the playlist to a CSV file with Exportify (Spotify) or TuneMyMusic (any service) and choose that file here.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="41"/>
+        <location filename="../qml/Errors.qml" line="53"/>
         <source>This is not a playlist or album link from Spotify, Deezer, Apple Music, Yandex Music or SoundCloud</source>
         <translation>This is not a playlist or album link from Spotify, Deezer, Apple Music, Yandex Music or SoundCloud</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="42"/>
+        <location filename="../qml/Errors.qml" line="54"/>
         <source>This CSV file has no column with track names. Export it again with Exportify or TuneMyMusic.</source>
         <translation>This CSV file has no column with track names. Export it again with Exportify or TuneMyMusic.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="43"/>
+        <location filename="../qml/Errors.qml" line="55"/>
         <source>There are no songs in it</source>
         <translation>There are no songs in it</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="44"/>
+        <location filename="../qml/Errors.qml" line="56"/>
         <source>GNOME could not add tray support. You can install AppIndicator support from the Extensions app.</source>
         <translation>GNOME could not add tray support. You can install AppIndicator support from the Extensions app.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="45"/>
+        <location filename="../qml/Errors.qml" line="57"/>
         <source>This file cannot be read: choose a CSV text file up to 5 MB</source>
         <translation>This file cannot be read: choose a CSV text file up to 5 MB</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="46"/>
+        <location filename="../qml/Errors.qml" line="58"/>
         <source>Import cancelled</source>
         <translation>Import cancelled</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="48"/>
+        <location filename="../qml/Errors.qml" line="60"/>
         <source>Something went wrong</source>
         <translation>Something went wrong</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="55"/>
+        <location filename="../qml/Errors.qml" line="67"/>
         <source>Cannot play: %1</source>
         <translation>Cannot play: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="56"/>
+        <location filename="../qml/Errors.qml" line="68"/>
         <source>Autoplay stopped: %1</source>
         <translation>Autoplay stopped: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="57"/>
+        <location filename="../qml/Errors.qml" line="69"/>
         <source>The library cannot be opened, changes will not be saved: %1</source>
         <translation>The library cannot be opened, changes will not be saved: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="58"/>
+        <location filename="../qml/Errors.qml" line="70"/>
         <source>Getting yt-dlp: %1%</source>
         <translation>Getting yt-dlp: %1%</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="59"/>
+        <location filename="../qml/Errors.qml" line="71"/>
         <source>Could not get yt-dlp: %1</source>
         <translation>Could not get yt-dlp: %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="60"/>
+        <location filename="../qml/Errors.qml" line="72"/>
         <source>Downloaded %1</source>
         <translation>Downloaded %1</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="61"/>
+        <location filename="../qml/Errors.qml" line="73"/>
         <source>Download of %1 failed: %2</source>
         <translation>Download of %1 failed: %2</translation>
-    </message>
-    <message>
-        <location filename="../qml/Errors.qml" line="8"/>
-        <source>Cannot find the service&apos;s address. You may be offline, or your DNS blocks it.</source>
-        <translation>Cannot find the service&apos;s address. You may be offline, or your DNS blocks it.</translation>
     </message>
     <message>
         <location filename="../qml/Errors.qml" line="9"/>
@@ -968,80 +964,119 @@
         <translation>The service refuses requests from your network. A proxy may help: Settings, Connections.</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="20"/>
+        <location filename="../qml/Errors.qml" line="26"/>
         <source>yt-dlp is ready</source>
         <translation>yt-dlp is ready</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="21"/>
+        <location filename="../qml/Errors.qml" line="27"/>
         <source>yt-dlp is up to date</source>
         <translation>yt-dlp is up to date</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="47"/>
+        <location filename="../qml/Errors.qml" line="59"/>
         <source>This is not a proxy address. Use http://host:port</source>
         <translation>This is not a proxy address. Use http://host:port</translation>
     </message>
     <message>
-        <location filename="../qml/Errors.qml" line="34"/>
+        <location filename="../qml/Errors.qml" line="46"/>
         <source>Only the window can do this</source>
         <translation>Only the window can do this</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="8"/>
         <source>Cannot reach the internet. Check your network or DNS.</source>
         <translation>Cannot reach the internet. Check your network or DNS.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="14"/>
         <source>Too many requests to the service. Wait a moment and try again.</source>
         <translation>Too many requests to the service. Wait a moment and try again.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="15"/>
         <source>The service is having problems. Try again in a while.</source>
         <translation>The service is having problems. Try again in a while.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="16"/>
         <source>The proxy asks for a login. Add it to the proxy address: Settings, Connections.</source>
         <translation>The proxy asks for a login. Add it to the proxy address: Settings, Connections.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="17"/>
         <source>The proxy could not open the connection to the service. Check the proxy or turn it off: Settings, Connections.</source>
         <translation>The proxy could not open the connection to the service. Check the proxy or turn it off: Settings, Connections.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="18"/>
         <source>The proxy does not answer. Check that it is running, or turn it off: Settings, Connections.</source>
         <translation>The proxy does not answer. Check that it is running, or turn it off: Settings, Connections.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="19"/>
         <source>No answer came through the proxy in time. Check the proxy or turn it off: Settings, Connections.</source>
         <translation>No answer came through the proxy in time. Check the proxy or turn it off: Settings, Connections.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="20"/>
         <source>The service refuses requests coming through your proxy. Try another proxy or turn it off: Settings, Connections.</source>
         <translation>The service refuses requests coming through your proxy. Try another proxy or turn it off: Settings, Connections.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="21"/>
         <source>Stopped waiting</source>
         <translation>Stopped waiting</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="40"/>
         <source>The library file is damaged</source>
         <translation>The library file is damaged</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="88"/>
         <source>Snellar did not change the file. Restore it from a backup or move it away, then try again.</source>
         <translation>Snellar did not change the file. Restore it from a backup or move it away, then try again.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="89"/>
         <source>Close the other program. Snellar opens the library by itself once it is free.</source>
         <translation>Close the other program. Snellar opens the library by itself once it is free.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="90"/>
         <source>Snellar did not change the file. Update Snellar to open it.</source>
         <translation>Snellar did not change the file. Update Snellar to open it.</translation>
     </message>
     <message>
+        <location filename="../qml/Errors.qml" line="91"/>
         <source>Snellar did not change the file. Check the disk and the folder&apos;s permissions, then try again.</source>
         <translation>Snellar did not change the file. Check the disk and the folder&apos;s permissions, then try again.</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="35"/>
+        <source>The latest release has no version Snellar can read</source>
+        <translation>The latest release has no version Snellar can read</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="36"/>
+        <source>The download failed its checksum</source>
+        <translation>The download failed its checksum</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="37"/>
+        <source>The download does not unpack</source>
+        <translation>The download does not unpack</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="38"/>
+        <source>Snellar cannot write to the folder it is installed in</source>
+        <translation>Snellar cannot write to the folder it is installed in</translation>
+    </message>
+    <message>
+        <location filename="../qml/Errors.qml" line="39"/>
+        <source>The new version is not signed by Snellar&apos;s key</source>
+        <translation>The new version is not signed by Snellar&apos;s key</translation>
     </message>
 </context>
 <context>
@@ -1073,42 +1108,42 @@
 <context>
     <name>FxPane</name>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="14"/>
+        <location filename="../qml/parts/FxPane.qml" line="13"/>
         <source>Bass</source>
         <translation>Bass</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="18"/>
-        <source> dB</source>
-        <translation> dB</translation>
+        <location filename="../qml/parts/FxPane.qml" line="10"/>
+        <source>%1 dB</source>
+        <translation>%1 dB</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="24"/>
+        <location filename="../qml/parts/FxPane.qml" line="14"/>
         <source>Speed</source>
         <translation>Speed</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="32"/>
+        <location filename="../qml/parts/FxPane.qml" line="15"/>
         <source>Keep pitch</source>
         <translation>Keep pitch</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="35"/>
+        <location filename="../qml/parts/FxPane.qml" line="16"/>
         <source>Reverb</source>
         <translation>Reverb</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="42"/>
+        <location filename="../qml/parts/FxPane.qml" line="17"/>
         <source>Echo</source>
         <translation>Echo</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="49"/>
+        <location filename="../qml/parts/FxPane.qml" line="18"/>
         <source>Stereo width</source>
         <translation>Stereo width</translation>
     </message>
     <message>
-        <location filename="../qml/parts/FxPane.qml" line="56"/>
+        <location filename="../qml/parts/FxPane.qml" line="19"/>
         <source>Normalize volume</source>
         <translation>Normalize volume</translation>
     </message>
@@ -1331,6 +1366,29 @@
     </message>
 </context>
 <context>
+    <name>LibraryGate</name>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="49"/>
+        <source>Try again</source>
+        <translation>Try again</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="50"/>
+        <source>Open folder</source>
+        <translation>Open folder</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="57"/>
+        <source>Continue without saving</source>
+        <translation>Continue without saving</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/LibraryGate.qml" line="67"/>
+        <source>Nothing you do in this session will be kept, and your library is not shown.</source>
+        <translation>Nothing you do in this session will be kept, and your library is not shown.</translation>
+    </message>
+</context>
+<context>
     <name>ListTools</name>
     <message>
         <location filename="../qml/parts/ListTools.qml" line="17"/>
@@ -1349,226 +1407,228 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/Main.qml" line="171"/>
-        <location filename="../qml/Main.qml" line="330"/>
+        <location filename="../qml/Main.qml" line="198"/>
+        <location filename="../qml/Main.qml" line="431"/>
         <source>Back</source>
         <translation>Back</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="178"/>
-        <location filename="../qml/Main.qml" line="331"/>
+        <location filename="../qml/Main.qml" line="205"/>
+        <location filename="../qml/Main.qml" line="432"/>
         <source>Forward</source>
         <translation>Forward</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="317"/>
-        <location filename="../qml/Main.qml" line="318"/>
-        <location filename="../qml/Main.qml" line="319"/>
-        <location filename="../qml/Main.qml" line="320"/>
-        <location filename="../qml/Main.qml" line="321"/>
-        <location filename="../qml/Main.qml" line="322"/>
-        <location filename="../qml/Main.qml" line="323"/>
-        <location filename="../qml/Main.qml" line="324"/>
-        <location filename="../qml/Main.qml" line="325"/>
-        <location filename="../qml/Main.qml" line="326"/>
-        <location filename="../qml/Main.qml" line="327"/>
+        <location filename="../qml/Main.qml" line="418"/>
+        <location filename="../qml/Main.qml" line="419"/>
+        <location filename="../qml/Main.qml" line="420"/>
+        <location filename="../qml/Main.qml" line="421"/>
+        <location filename="../qml/Main.qml" line="422"/>
+        <location filename="../qml/Main.qml" line="423"/>
+        <location filename="../qml/Main.qml" line="424"/>
+        <location filename="../qml/Main.qml" line="425"/>
+        <location filename="../qml/Main.qml" line="426"/>
+        <location filename="../qml/Main.qml" line="427"/>
+        <location filename="../qml/Main.qml" line="428"/>
         <source>Playback</source>
         <translation>Playback</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="317"/>
+        <location filename="../qml/Main.qml" line="418"/>
         <source>Play or pause</source>
         <translation>Play or pause</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="318"/>
+        <location filename="../qml/Main.qml" line="419"/>
         <source>Next song</source>
         <translation>Next song</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="319"/>
+        <location filename="../qml/Main.qml" line="420"/>
         <source>Previous song</source>
         <translation>Previous song</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="320"/>
+        <location filename="../qml/Main.qml" line="421"/>
         <source>Forward 5 seconds</source>
         <translation>Forward 5 seconds</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="321"/>
+        <location filename="../qml/Main.qml" line="422"/>
         <source>Back 5 seconds</source>
         <translation>Back 5 seconds</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="322"/>
+        <location filename="../qml/Main.qml" line="423"/>
         <source>Volume up</source>
         <translation>Volume up</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="323"/>
+        <location filename="../qml/Main.qml" line="424"/>
         <source>Volume down</source>
         <translation>Volume down</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="324"/>
+        <location filename="../qml/Main.qml" line="425"/>
         <source>Mute or unmute</source>
         <translation>Mute or unmute</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="325"/>
+        <location filename="../qml/Main.qml" line="426"/>
         <source>Shuffle on or off</source>
         <translation>Shuffle on or off</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="326"/>
+        <location filename="../qml/Main.qml" line="427"/>
         <source>Repeat: off, all, one</source>
         <translation>Repeat: off, all, one</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="327"/>
+        <location filename="../qml/Main.qml" line="428"/>
         <source>Like the current song</source>
         <translation>Like the current song</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="328"/>
-        <location filename="../qml/Main.qml" line="329"/>
-        <location filename="../qml/Main.qml" line="330"/>
-        <location filename="../qml/Main.qml" line="331"/>
-        <location filename="../qml/Main.qml" line="332"/>
-        <location filename="../qml/Main.qml" line="333"/>
-        <location filename="../qml/Main.qml" line="334"/>
-        <location filename="../qml/Main.qml" line="335"/>
+        <location filename="../qml/Main.qml" line="429"/>
+        <location filename="../qml/Main.qml" line="430"/>
+        <location filename="../qml/Main.qml" line="431"/>
+        <location filename="../qml/Main.qml" line="432"/>
+        <location filename="../qml/Main.qml" line="433"/>
+        <location filename="../qml/Main.qml" line="434"/>
+        <location filename="../qml/Main.qml" line="435"/>
+        <location filename="../qml/Main.qml" line="436"/>
         <source>Navigation</source>
         <translation>Navigation</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="328"/>
+        <location filename="../qml/Main.qml" line="429"/>
         <source>Search</source>
         <translation>Search</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="329"/>
+        <location filename="../qml/Main.qml" line="430"/>
         <source>Find in this list or page</source>
         <translation>Find in this list or page</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="332"/>
+        <location filename="../qml/Main.qml" line="433"/>
         <source>Lyrics</source>
         <translation>Lyrics</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="333"/>
+        <location filename="../qml/Main.qml" line="434"/>
         <source>New playlist</source>
         <translation>New playlist</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="334"/>
-        <location filename="../qml/Main.qml" line="342"/>
+        <location filename="../qml/Main.qml" line="435"/>
+        <location filename="../qml/Main.qml" line="443"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="335"/>
-        <source>Close Now Playing or the audio sheet</source>
-        <translation>Close Now Playing or the audio sheet</translation>
-    </message>
-    <message>
-        <location filename="../qml/Main.qml" line="336"/>
-        <location filename="../qml/Main.qml" line="337"/>
-        <location filename="../qml/Main.qml" line="338"/>
-        <location filename="../qml/Main.qml" line="339"/>
-        <location filename="../qml/Main.qml" line="340"/>
-        <location filename="../qml/Main.qml" line="341"/>
+        <location filename="../qml/Main.qml" line="437"/>
+        <location filename="../qml/Main.qml" line="438"/>
+        <location filename="../qml/Main.qml" line="439"/>
+        <location filename="../qml/Main.qml" line="440"/>
+        <location filename="../qml/Main.qml" line="441"/>
+        <location filename="../qml/Main.qml" line="442"/>
         <source>Song lists</source>
         <translation>Song lists</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="336"/>
+        <location filename="../qml/Main.qml" line="437"/>
         <source>Move between songs</source>
         <translation>Move between songs</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="337"/>
+        <location filename="../qml/Main.qml" line="438"/>
         <source>Play the song</source>
         <translation>Play the song</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="338"/>
+        <location filename="../qml/Main.qml" line="439"/>
         <source>Select more songs</source>
         <translation>Select more songs</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="339"/>
+        <location filename="../qml/Main.qml" line="440"/>
         <source>Select all</source>
         <translation>Select all</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="340"/>
+        <location filename="../qml/Main.qml" line="441"/>
         <source>Song menu</source>
         <translation>Song menu</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="341"/>
+        <location filename="../qml/Main.qml" line="442"/>
         <source>Clear the selection</source>
         <translation>Clear the selection</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="343"/>
-        <location filename="../qml/Main.qml" line="344"/>
+        <location filename="../qml/Main.qml" line="444"/>
+        <location filename="../qml/Main.qml" line="445"/>
         <source>Help</source>
         <translation>Help</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="343"/>
+        <location filename="../qml/Main.qml" line="444"/>
         <source>Keyboard shortcuts</source>
         <translation>Keyboard shortcuts</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="344"/>
+        <location filename="../qml/Main.qml" line="445"/>
         <source>Report a bug</source>
         <translation>Report a bug</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="56"/>
+        <location filename="../qml/Main.qml" line="57"/>
         <source>Hide Snellar</source>
         <translation>Hide Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="56"/>
+        <location filename="../qml/Main.qml" line="57"/>
         <source>Show Snellar</source>
         <translation>Show Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="57"/>
+        <location filename="../qml/Main.qml" line="58"/>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="57"/>
+        <location filename="../qml/Main.qml" line="58"/>
         <source>Play</source>
         <translation>Play</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="58"/>
+        <location filename="../qml/Main.qml" line="59"/>
         <source>Next</source>
         <translation>Next</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="60"/>
+        <location filename="../qml/Main.qml" line="61"/>
         <source>Quit Snellar</source>
         <translation>Quit Snellar</translation>
     </message>
     <message>
-        <location filename="../qml/Main.qml" line="342"/>
+        <location filename="../qml/Main.qml" line="436"/>
+        <source>Close Now Playing or the audio panel</source>
+        <translation>Close Now Playing or the audio panel</translation>
+    </message>
+    <message>
+        <location filename="../qml/Main.qml" line="443"/>
         <source>Move between sections</source>
         <translation>Move between sections</translation>
     </message>
     <message>
+        <location filename="../qml/Main.qml" line="294"/>
         <source>Not saving: changes will be lost when Snellar closes</source>
         <translation>Not saving: changes will be lost when Snellar closes</translation>
     </message>
     <message>
+        <location filename="../qml/Main.qml" line="300"/>
         <source>Try again</source>
         <translation>Try again</translation>
     </message>
@@ -1584,12 +1644,12 @@
 <context>
     <name>NowColumn</name>
     <message>
-        <location filename="../qml/parts/NowColumn.qml" line="45"/>
+        <location filename="../qml/parts/NowColumn.qml" line="43"/>
         <source>More</source>
         <translation>More</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowColumn.qml" line="56"/>
+        <location filename="../qml/parts/NowColumn.qml" line="54"/>
         <source>Nothing playing</source>
         <translation>Nothing playing</translation>
     </message>
@@ -1602,11 +1662,6 @@
         <location filename="../qml/parts/NowColumn.qml" line="91"/>
         <source>Like</source>
         <translation>Like</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/NowColumn.qml" line="92"/>
-        <source>Download</source>
-        <translation>Download</translation>
     </message>
     <message>
         <location filename="../qml/parts/NowColumn.qml" line="93"/>
@@ -1622,27 +1677,27 @@
 <context>
     <name>NowPlaying</name>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="45"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="47"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="112"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="113"/>
         <source>Unlike</source>
         <translation>Unlike</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="112"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="113"/>
         <source>Like</source>
         <translation>Like</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="116"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="118"/>
         <source>Sound</source>
         <translation>Sound</translation>
     </message>
     <message>
-        <location filename="../qml/parts/NowPlaying.qml" line="120"/>
+        <location filename="../qml/parts/NowPlaying.qml" line="122"/>
         <source>More</source>
         <translation>More</translation>
     </message>
@@ -1715,38 +1770,77 @@
     </message>
 </context>
 <context>
+    <name>PlayTrace</name>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="27"/>
+        <source>Still trying to start this song</source>
+        <translation>Still trying to start this song</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="35"/>
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="46"/>
+        <source>Playback stopped: 3 tracks in a row could not play</source>
+        <translation>Playback stopped: 3 tracks in a row could not play</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="71"/>
+        <source>Snellar will try again soon</source>
+        <translation>Snellar will try again soon</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="83"/>
+        <source>Try again</source>
+        <translation>Try again</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="90"/>
+        <source>Continue</source>
+        <translation>Continue</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlayTrace.qml" line="90"/>
+        <source>Skip</source>
+        <translation>Skip</translation>
+    </message>
+</context>
+<context>
     <name>PlayerCapsule</name>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="40"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="39"/>
         <source>Nothing playing</source>
         <translation>Nothing playing</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="56"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="79"/>
         <source>Unlike</source>
         <translation>Unlike</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="56"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="79"/>
         <source>Like</source>
         <translation>Like</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="76"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="100"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="77"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="101"/>
         <source>Lyrics</source>
         <translation>Lyrics</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlayerCapsule.qml" line="78"/>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="102"/>
         <source>Sound</source>
         <translation>Sound</translation>
     </message>
     <message>
+        <location filename="../qml/parts/PlayerCapsule.qml" line="56"/>
         <source>Try again</source>
         <translation>Try again</translation>
     </message>
@@ -1754,22 +1848,22 @@
 <context>
     <name>Playlist</name>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="28"/>
+        <location filename="../qml/views/Playlist.qml" line="29"/>
         <source>Custom order</source>
         <translation>Custom order</translation>
     </message>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="28"/>
+        <location filename="../qml/views/Playlist.qml" line="29"/>
         <source>Date added</source>
         <translation>Date added</translation>
     </message>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="67"/>
+        <location filename="../qml/views/Playlist.qml" line="69"/>
         <source>Playlist</source>
         <translation>Playlist</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/views/Playlist.qml" line="69"/>
+        <location filename="../qml/views/Playlist.qml" line="71"/>
         <source>%n song(s)</source>
         <translation>
             <numerusform>%n song</numerusform>
@@ -1777,34 +1871,19 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/views/Playlist.qml" line="73"/>
-        <source>Rename</source>
-        <translation>Rename</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="74"/>
+        <location filename="../qml/views/Playlist.qml" line="98"/>
         <source>Edit details</source>
         <translation>Edit details</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="75"/>
-        <source>Change cover</source>
-        <translation>Change cover</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="78"/>
-        <source>Reset cover</source>
-        <translation>Reset cover</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Playlist.qml" line="82"/>
-        <source>Delete</source>
-        <translation>Delete</translation>
     </message>
     <message>
         <location filename="../qml/views/Playlist.qml" line="108"/>
         <source>No songs yet. Use “Add to playlist” in a song menu.</source>
         <translation>No songs yet. Use “Add to playlist” in a song menu.</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Playlist.qml" line="80"/>
+        <source>Playlist name</source>
+        <translation>Playlist name</translation>
     </message>
 </context>
 <context>
@@ -1821,54 +1900,87 @@
 <context>
     <name>PlaylistEditor</name>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="69"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="75"/>
         <source>Choose a cover</source>
         <translation>Choose a cover</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="70"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="76"/>
         <source>Images (*.png *.jpg *.jpeg *.webp)</source>
         <translation>Images (*.png *.jpg *.jpeg *.webp)</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="78"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="84"/>
         <source>Edit details</source>
         <translation>Edit details</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="103"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="109"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="116"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="124"/>
         <source>Add a description</source>
         <translation>Add a description</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="128"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="138"/>
         <source>Cover from a song</source>
         <translation>Cover from a song</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="168"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="178"/>
         <source>Choose image…</source>
         <translation>Choose image…</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="171"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="181"/>
         <source>Use the first song&apos;s cover</source>
         <translation>Use the first song&apos;s cover</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="180"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="215"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/parts/PlaylistEditor.qml" line="181"/>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="222"/>
         <source>Save</source>
         <translation>Save</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="196"/>
+        <source>Delete playlist</source>
+        <translation>Delete playlist</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="203"/>
+        <source>Delete “%1”?</source>
+        <translation>Delete “%1”?</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/PlaylistEditor.qml" line="222"/>
+        <source>Delete</source>
+        <translation>Delete</translation>
+    </message>
+</context>
+<context>
+    <name>QuickAdd</name>
+    <message>
+        <location filename="../qml/parts/QuickAdd.qml" line="17"/>
+        <source>Add to playlist</source>
+        <translation>Add to playlist</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/QuickAdd.qml" line="99"/>
+        <source>New playlist</source>
+        <translation>New playlist</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/QuickAdd.qml" line="121"/>
+        <source>Playlist name</source>
+        <translation>Playlist name</translation>
     </message>
 </context>
 <context>
@@ -1939,7 +2051,7 @@
 <context>
     <name>Settings</name>
     <message>
-        <location filename="../qml/views/Settings.qml" line="212"/>
+        <location filename="../qml/views/Settings.qml" line="255"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
@@ -1949,7 +2061,7 @@
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="321"/>
+        <location filename="../qml/views/Settings.qml" line="364"/>
         <source>System</source>
         <translation>System</translation>
     </message>
@@ -1969,12 +2081,12 @@
         <translation>Mirrors the whole layout</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="346"/>
+        <location filename="../qml/views/Settings.qml" line="389"/>
         <source>Left</source>
         <translation>Left</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="346"/>
+        <location filename="../qml/views/Settings.qml" line="389"/>
         <source>Right</source>
         <translation>Right</translation>
     </message>
@@ -2004,33 +2116,53 @@
         <translation>Download folder</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="134"/>
-        <location filename="../qml/views/Settings.qml" line="484"/>
+        <location filename="../qml/views/Settings.qml" line="107"/>
+        <source>Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. These of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off, a Snellar pipeline for apps, corner radius 12 on all corners. Every app on its list gets that look. Undo puts them back and removes what Snellar installed.</source>
+        <translation>Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. These of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off, a Snellar pipeline for apps, corner radius 12 on all corners. Every app on its list gets that look. Undo puts them back and removes what Snellar installed.</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="113"/>
+        <source>Lighter glass</source>
+        <translation>Lighter glass</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="114"/>
+        <source>Blur my Shell darkens the window by default. This gives its apps a Snellar pipeline with a softer blur and no darkening, and corner radius 12 on all corners. Every app on its list gets that look. Undo puts it back.</source>
+        <translation>Blur my Shell darkens the window by default. This gives its apps a Snellar pipeline with a softer blur and no darkening, and corner radius 12 on all corners. Every app on its list gets that look. Undo puts it back.</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="176"/>
+        <location filename="../qml/views/Settings.qml" line="564"/>
         <source>Clear history</source>
         <translation>Clear history</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="134"/>
+        <location filename="../qml/views/Settings.qml" line="176"/>
         <source>Forget everything you have played</source>
         <translation>Forget everything you have played</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="465"/>
+        <location filename="../qml/views/Settings.qml" line="537"/>
+        <source>Open</source>
+        <translation>Open</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="545"/>
         <source>Clear</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="482"/>
+        <location filename="../qml/views/Settings.qml" line="562"/>
         <source>Clear your listening history?</source>
         <translation>Clear your listening history?</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="483"/>
+        <location filename="../qml/views/Settings.qml" line="563"/>
         <source>Recommendations start over from your likes. This cannot be undone.</source>
         <translation>Recommendations start over from your likes. This cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="485"/>
+        <location filename="../qml/views/Settings.qml" line="565"/>
         <source>History cleared</source>
         <translation>History cleared</translation>
     </message>
@@ -2065,22 +2197,22 @@
         <translation>Connections</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="221"/>
+        <location filename="../qml/views/Settings.qml" line="264"/>
         <source>Find a setting</source>
         <translation>Find a setting</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="268"/>
+        <location filename="../qml/views/Settings.qml" line="311"/>
         <source>No setting matches “%1”</source>
         <translation>No setting matches “%1”</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="136"/>
+        <location filename="../qml/views/Settings.qml" line="178"/>
         <source>Keyboard shortcuts</source>
         <translation>Keyboard shortcuts</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="457"/>
+        <location filename="../qml/views/Settings.qml" line="529"/>
         <source>Show</source>
         <translation>Show</translation>
     </message>
@@ -2144,19 +2276,19 @@
         <translation>The smallest stream, about 50 kbps</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="439"/>
+        <location filename="../qml/views/Settings.qml" line="511"/>
         <source>Auto</source>
         <comment>audio quality</comment>
         <translation>Auto</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="439"/>
+        <location filename="../qml/views/Settings.qml" line="511"/>
         <source>High</source>
         <comment>audio quality</comment>
         <translation>High</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="439"/>
+        <location filename="../qml/views/Settings.qml" line="511"/>
         <source>Data saver</source>
         <comment>audio quality</comment>
         <translation>Data saver</translation>
@@ -2182,12 +2314,12 @@
         <translation>Keep playing when the window closes</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="72"/>
+        <location filename="../qml/views/Settings.qml" line="73"/>
         <source>Snellar stays in the tray; quit from its menu</source>
         <translation>Snellar stays in the tray; quit from its menu</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="72"/>
+        <location filename="../qml/views/Settings.qml" line="73"/>
         <source>No tray on this desktop, so closing the window still quits</source>
         <translation>No tray on this desktop, so closing the window still quits</translation>
     </message>
@@ -2203,7 +2335,7 @@
     </message>
     <message>
         <location filename="../qml/views/Settings.qml" line="32"/>
-        <location filename="../qml/views/Settings.qml" line="99"/>
+        <location filename="../qml/views/Settings.qml" line="100"/>
         <source>Dependencies</source>
         <translation>Dependencies</translation>
     </message>
@@ -2269,183 +2401,193 @@
         <translation>Where downloaded songs are saved</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="71"/>
+        <location filename="../qml/views/Settings.qml" line="72"/>
         <source>Follows the cover of the song playing now</source>
         <translation>Follows the cover of the song playing now</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="71"/>
+        <location filename="../qml/views/Settings.qml" line="72"/>
         <source>Colors buttons, the seek bar and the playing song</source>
         <translation>Colors buttons, the seek bar and the playing song</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="72"/>
+        <location filename="../qml/views/Settings.qml" line="73"/>
         <source>GNOME has no tray, so closing the window quits. Dependencies can add one.</source>
         <translation>GNOME has no tray, so closing the window quits. Dependencies can add one.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="73"/>
+        <location filename="../qml/views/Settings.qml" line="74"/>
         <source>%1. Applies from the next song</source>
         <translation>%1. Applies from the next song</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="79"/>
+        <location filename="../qml/views/Settings.qml" line="80"/>
         <source>Glass works through Blur my Shell. Auto uses Glass.</source>
         <translation>Glass works through Blur my Shell. Auto uses Glass.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="79"/>
+        <location filename="../qml/views/Settings.qml" line="80"/>
         <source>GNOME does not blur windows by itself, so Auto uses Cover.</source>
         <translation>GNOME does not blur windows by itself, so Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="80"/>
+        <location filename="../qml/views/Settings.qml" line="81"/>
         <source>Hyprland blurs this window. Auto uses Glass.</source>
         <translation>Hyprland blurs this window. Auto uses Glass.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="80"/>
+        <location filename="../qml/views/Settings.qml" line="81"/>
         <source>Blur is off in Hyprland, so Auto uses Cover.</source>
         <translation>Blur is off in Hyprland, so Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="81"/>
+        <location filename="../qml/views/Settings.qml" line="82"/>
         <source>SwayFX blurs this window. Auto uses Glass.</source>
         <translation>SwayFX blurs this window. Auto uses Glass.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="81"/>
+        <location filename="../qml/views/Settings.qml" line="82"/>
         <source>Blur is off in SwayFX, so Auto uses Cover.</source>
         <translation>Blur is off in SwayFX, so Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="82"/>
+        <location filename="../qml/views/Settings.qml" line="83"/>
         <source>Your niri config turns blur on. Auto stays on Cover: choose Glass in Appearance to use it.</source>
         <translation>Your niri config turns blur on. Auto stays on Cover: choose Glass in Appearance to use it.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="82"/>
+        <location filename="../qml/views/Settings.qml" line="83"/>
         <source>niri does not blur this window yet, so Auto uses Cover.</source>
         <translation>niri does not blur this window yet, so Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="83"/>
+        <location filename="../qml/views/Settings.qml" line="84"/>
         <source>KDE Plasma blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.</source>
         <translation>KDE Plasma blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="84"/>
+        <location filename="../qml/views/Settings.qml" line="85"/>
         <source>COSMIC blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.</source>
         <translation>COSMIC blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="85"/>
+        <location filename="../qml/views/Settings.qml" line="86"/>
         <source>Sway cannot blur windows. SwayFX can. Auto uses Cover.</source>
         <translation>Sway cannot blur windows. SwayFX can. Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="86"/>
+        <location filename="../qml/views/Settings.qml" line="87"/>
         <source>Snellar cannot tell whether this desktop blurs windows. Auto uses Cover.</source>
         <translation>Snellar cannot tell whether this desktop blurs windows. Auto uses Cover.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="91"/>
+        <location filename="../qml/views/Settings.qml" line="92"/>
         <source>Add this to your Hyprland config. Snellar never edits your files.</source>
         <translation>Add this to your Hyprland config. Snellar never edits your files.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="92"/>
+        <location filename="../qml/views/Settings.qml" line="93"/>
         <source>Add this to your main SwayFX config, not an included file: only the main one can be read. Snellar never edits your files.</source>
         <translation>Add this to your main SwayFX config, not an included file: only the main one can be read. Snellar never edits your files.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="93"/>
+        <location filename="../qml/views/Settings.qml" line="94"/>
         <source>Add this to your niri config. Snellar never edits your files.</source>
         <translation>Add this to your niri config. Snellar never edits your files.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="98"/>
+        <location filename="../qml/views/Settings.qml" line="99"/>
         <source>Can be improved</source>
         <translation>Can be improved</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="105"/>
+        <location filename="../qml/views/Settings.qml" line="106"/>
         <source>Glass through Blur my Shell</source>
         <translation>Glass through Blur my Shell</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="106"/>
-        <source>Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. Four of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off. Undo puts them back and removes what Snellar installed.</source>
-        <translation>Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. Four of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off. Undo puts them back and removes what Snellar installed.</translation>
-    </message>
-    <message>
-        <location filename="../qml/views/Settings.qml" line="111"/>
+        <location filename="../qml/views/Settings.qml" line="119"/>
         <source>Tray</source>
         <translation>Tray</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="112"/>
+        <location filename="../qml/views/Settings.qml" line="120"/>
         <source>GNOME has no tray, so closing the window quits. GNOME opens its own dialog to install AppIndicator support.</source>
         <translation>GNOME has no tray, so closing the window quits. GNOME opens its own dialog to install AppIndicator support.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="118"/>
-        <location filename="../qml/views/Settings.qml" line="121"/>
+        <location filename="../qml/views/Settings.qml" line="126"/>
+        <location filename="../qml/views/Settings.qml" line="129"/>
         <source>Window blur</source>
         <translation>Window blur</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="119"/>
+        <location filename="../qml/views/Settings.qml" line="127"/>
         <source>Add this to your Hyprland config. This form, for Hyprland before 0.57, has not been tested. Snellar never edits your files.</source>
         <translation>Add this to your Hyprland config. This form, for Hyprland before 0.57, has not been tested. Snellar never edits your files.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="126"/>
+        <location filename="../qml/views/Settings.qml" line="134"/>
         <source>Components</source>
         <translation>Components</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="127"/>
+        <location filename="../qml/views/Settings.qml" line="135"/>
         <source>What Snellar runs on here, for bug reports.</source>
         <translation>What Snellar runs on here, for bug reports.</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="136"/>
+        <location filename="../qml/views/Settings.qml" line="175"/>
+        <source>Equalizer and effects</source>
+        <translation>Equalizer and effects</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="175"/>
+        <source>Also opens from the sliders button by the player</source>
+        <translation>Also opens from the sliders button by the player</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="178"/>
         <source>Also opens with Ctrl+/</source>
         <translation>Also opens with Ctrl+/</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="360"/>
+        <location filename="../qml/views/Settings.qml" line="422"/>
         <source>Waiting for GNOME</source>
         <translation>Waiting for GNOME</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="360"/>
+        <location filename="../qml/views/Settings.qml" line="422"/>
         <source>Set up glass</source>
         <translation>Set up glass</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="376"/>
+        <location filename="../qml/views/Settings.qml" line="432"/>
+        <source>Update glass</source>
+        <translation>Update glass</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="448"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="394"/>
+        <location filename="../qml/views/Settings.qml" line="466"/>
         <source>Copy</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="397"/>
+        <location filename="../qml/views/Settings.qml" line="469"/>
         <source>Copied</source>
         <translation>Copied</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="422"/>
+        <location filename="../qml/views/Settings.qml" line="494"/>
         <source>Browse</source>
         <translation>Browse</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="429"/>
+        <location filename="../qml/views/Settings.qml" line="501"/>
         <source>Choose a download folder</source>
         <translation>Choose a download folder</translation>
     </message>
@@ -2460,14 +2602,89 @@
         <translation>Get a free key on Last.fm</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="135"/>
+        <location filename="../qml/views/Settings.qml" line="177"/>
         <source>Music player</source>
         <translation>Music player</translation>
     </message>
     <message>
-        <location filename="../qml/views/Settings.qml" line="367"/>
+        <location filename="../qml/views/Settings.qml" line="439"/>
         <source>Add tray support</source>
         <translation>Add tray support</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="68"/>
+        <source>Update automatically</source>
+        <translation>Update automatically</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="145"/>
+        <source>Last checked %1</source>
+        <translation>Last checked %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="145"/>
+        <source>Not checked yet</source>
+        <translation>Not checked yet</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="147"/>
+        <source>Version %1. A development build does not update itself</source>
+        <translation>Version %1. A development build does not update itself</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="148"/>
+        <source>Version %1 runs from %2. Only a copy set up by the install script updates itself</source>
+        <translation>Version %1 runs from %2. Only a copy set up by the install script updates itself</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="150"/>
+        <source>Version %1. Off: new versions are not checked for</source>
+        <translation>Version %1. Off: new versions are not checked for</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="151"/>
+        <source>Version %1. Checking for a new one</source>
+        <translation>Version %1. Checking for a new one</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="152"/>
+        <source>Version %1. Getting %2 in the background: %3%</source>
+        <translation>Version %1. Getting %2 in the background: %3%</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="154"/>
+        <source>Version %1 is ready and starts the next time you open Snellar</source>
+        <translation>Version %1 is ready and starts the next time you open Snellar</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="155"/>
+        <source>Version %1. Could not update: %2 It tries again later</source>
+        <translation>Version %1. Could not update: %2 It tries again later</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="156"/>
+        <source>Version %1. %2</source>
+        <translation>Version %1. %2</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="407"/>
+        <source>Check now</source>
+        <translation>Check now</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="407"/>
+        <source>Restart</source>
+        <translation>Restart</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="153"/>
+        <source>Version %1 is up to date. %2</source>
+        <translation>Version %1 is up to date. %2</translation>
+    </message>
+    <message>
+        <location filename="../qml/views/Settings.qml" line="149"/>
+        <source>Version %1. This build has no update key, so it does not update itself</source>
+        <translation>Version %1. This build has no update key, so it does not update itself</translation>
     </message>
 </context>
 <context>
@@ -2546,24 +2763,29 @@
         <translation>Playlist name</translation>
     </message>
     <message>
-        <location filename="../qml/parts/Sidebar.qml" line="171"/>
-        <source>Import from a link or CSV</source>
-        <translation>Import from a link or CSV</translation>
-    </message>
-    <message>
-        <location filename="../qml/parts/Sidebar.qml" line="234"/>
+        <location filename="../qml/parts/Sidebar.qml" line="253"/>
         <source>Rename</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../qml/parts/Sidebar.qml" line="235"/>
+        <location filename="../qml/parts/Sidebar.qml" line="254"/>
         <source>Delete folder</source>
         <translation>Delete folder</translation>
     </message>
     <message>
-        <location filename="../qml/parts/Sidebar.qml" line="267"/>
+        <location filename="../qml/parts/Sidebar.qml" line="286"/>
         <source>Settings</source>
         <translation>Settings</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/Sidebar.qml" line="178"/>
+        <source>Import</source>
+        <translation>Import</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/Sidebar.qml" line="189"/>
+        <source>Create</source>
+        <translation>Create</translation>
     </message>
 </context>
 <context>
@@ -2613,40 +2835,45 @@
         <translation>%1 kbps</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="14"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="16"/>
         <source>Downloaded</source>
         <translation>Downloaded</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="24"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="26"/>
         <source>%1 kHz</source>
         <translation>%1 kHz</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="21"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="23"/>
         <source>Turned down by %1 dB to even out loudness</source>
         <translation>Turned down by %1 dB to even out loudness</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="21"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="23"/>
         <source>Loudness already even</source>
         <translation>Loudness already even</translation>
     </message>
     <message>
-        <location filename="../qml/parts/StreamBadge.qml" line="22"/>
+        <location filename="../qml/parts/StreamBadge.qml" line="24"/>
         <source>Loudness evened out while playing</source>
         <translation>Loudness evened out while playing</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/StreamBadge.qml" line="15"/>
+        <source>Downloading</source>
+        <translation>Downloading</translation>
     </message>
 </context>
 <context>
     <name>Theme</name>
     <message>
-        <location filename="../qml/Theme.qml" line="271"/>
+        <location filename="../qml/Theme.qml" line="285"/>
         <source>Just now</source>
         <translation>Just now</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/Theme.qml" line="272"/>
+        <location filename="../qml/Theme.qml" line="286"/>
         <source>%n minute(s) ago</source>
         <translation>
             <numerusform>%n minute ago</numerusform>
@@ -2654,7 +2881,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/Theme.qml" line="273"/>
+        <location filename="../qml/Theme.qml" line="287"/>
         <source>%n hour(s) ago</source>
         <translation>
             <numerusform>%n hour ago</numerusform>
@@ -2662,7 +2889,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/Theme.qml" line="274"/>
+        <location filename="../qml/Theme.qml" line="288"/>
         <source>%n day(s) ago</source>
         <translation>
             <numerusform>%n day ago</numerusform>
@@ -2684,22 +2911,22 @@
 <context>
     <name>TrackRow</name>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="212"/>
+        <location filename="../qml/parts/TrackRow.qml" line="210"/>
         <source>Unlike</source>
         <translation>Unlike</translation>
     </message>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="212"/>
+        <location filename="../qml/parts/TrackRow.qml" line="210"/>
         <source>Like</source>
         <translation>Like</translation>
     </message>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="237"/>
+        <location filename="../qml/parts/TrackRow.qml" line="235"/>
         <source>Remove</source>
         <translation>Remove</translation>
     </message>
     <message>
-        <location filename="../qml/parts/TrackRow.qml" line="237"/>
+        <location filename="../qml/parts/TrackRow.qml" line="235"/>
         <source>More</source>
         <translation>More</translation>
     </message>
@@ -2753,6 +2980,29 @@
         <location filename="../qml/parts/VolumeControl.qml" line="15"/>
         <source>Mute</source>
         <translation>Mute</translation>
+    </message>
+</context>
+<context>
+    <name>WindowFrame</name>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="49"/>
+        <source>Minimize</source>
+        <translation>Minimize</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="56"/>
+        <source>Restore</source>
+        <translation>Restore</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="56"/>
+        <source>Maximize</source>
+        <translation>Maximize</translation>
+    </message>
+    <message>
+        <location filename="../qml/parts/WindowFrame.qml" line="63"/>
+        <source>Close window</source>
+        <translation>Close window</translation>
     </message>
 </context>
 <context>
@@ -2821,56 +3071,6 @@
         <location filename="../qml/Words.qml" line="31"/>
         <source>%1 subscribers</source>
         <translation>%1 subscribers</translation>
-    </message>
-</context>
-<context>
-    <name>PlayTrace</name>
-    <message>
-        <source>Still trying to start this song</source>
-        <translation>Still trying to start this song</translation>
-    </message>
-    <message>
-        <source>Cancel</source>
-        <translation>Cancel</translation>
-    </message>
-    <message>
-        <source>Playback stopped: 3 tracks in a row could not play</source>
-        <translation>Playback stopped: 3 tracks in a row could not play</translation>
-    </message>
-    <message>
-        <source>Snellar will try again soon</source>
-        <translation>Snellar will try again soon</translation>
-    </message>
-    <message>
-        <source>Try again</source>
-        <translation>Try again</translation>
-    </message>
-    <message>
-        <source>Continue</source>
-        <translation>Continue</translation>
-    </message>
-    <message>
-        <source>Skip</source>
-        <translation>Skip</translation>
-    </message>
-</context>
-<context>
-    <name>LibraryGate</name>
-    <message>
-        <source>Try again</source>
-        <translation>Try again</translation>
-    </message>
-    <message>
-        <source>Open folder</source>
-        <translation>Open folder</translation>
-    </message>
-    <message>
-        <source>Continue without saving</source>
-        <translation>Continue without saving</translation>
-    </message>
-    <message>
-        <source>Nothing you do in this session will be kept, and your library is not shown.</source>
-        <translation>Nothing you do in this session will be kept, and your library is not shown.</translation>
     </message>
 </context>
 </TS>

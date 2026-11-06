@@ -95,7 +95,7 @@ Rectangle {
                 text: qsTr("Library")
                 color: Nav.view === "library" ? Theme.accent : Theme.text3
                 font.pixelSize: Theme.fsCaption
-                TapHandler { onTapped: Nav.go("library") }
+                Tap { onTapped: Nav.go("library") }
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
             }
             IconButton {
@@ -164,14 +164,33 @@ Rectangle {
             Keys.onEscapePressed: bar.creating = false
         }
 
-        Link {
+        Row {
+            id: createActions
             width: parent.width
             visible: bar.creating
-            leftPadding: Theme.spaceMd
-            text: qsTr("Import from a link or CSV")
-            onClicked: {
-                bar.creating = false
-                Nav.go("import")
+            topPadding: Theme.spaceXs
+            bottomPadding: Theme.spaceSm
+            spacing: Theme.spaceSm
+
+            PillButton {
+                width: (createActions.width - createActions.spacing) / 2
+                height: Theme.controlSm
+                text: qsTr("Import")
+                onClicked: {
+                    bar.creating = false
+                    Nav.go("import")
+                }
+            }
+            PillButton {
+                width: (createActions.width - createActions.spacing) / 2
+                height: Theme.controlSm
+                opacity: field.text.trim() ? 1 : Theme.disabledOpacity
+                primary: true
+                text: qsTr("Create")
+                onClicked: {
+                    if (field.text.trim()) bar.create()
+                    else field.forceActiveFocus()
+                }
             }
         }
     }
@@ -216,9 +235,9 @@ Rectangle {
             if (kind === "folder") Api.call("openFolder", { id: entity.id, open: !entity.open }, () => bar.refresh())
             else ({ playlist: Nav.playlist, remote: Nav.remote, album: Nav.album, artist: Nav.artist })[kind](entity.id)
         }
-        onMenuRequested: (x, y) => kind === "folder" ? folderMenu.popup(entry, x, y) : menu.open(entry, x, y)
+        menu: kind === "folder" ? folderMenu : spot
 
-        MenuSpot { id: menu; kind: entry.kind; entity: entry.entity }
+        MenuSpot { id: spot; kind: entry.kind; entity: entry.entity }
 
         DropArea {
             id: drop

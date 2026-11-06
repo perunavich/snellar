@@ -28,6 +28,7 @@ mod server;
 #[cfg(test)]
 mod testkit;
 mod tray;
+mod update;
 mod ytdlp;
 
 use cxx_qt_lib::{QFont, QGuiApplication, QQmlApplicationEngine, QQuickStyle, QString, QUrl};
@@ -51,7 +52,7 @@ fn main() {
     qtlog::install();
     unsafe { std::env::set_var("QML_XHR_ALLOW_FILE_READ", "1") };
     if std::env::var_os("QT_WAYLAND_DECORATION").is_none() {
-        unsafe { std::env::set_var("QT_WAYLAND_DECORATION", "bradient") };
+        unsafe { std::env::set_var("QT_WAYLAND_DECORATION", desktop::OWN_DECORATION) };
     }
     if std::env::var_os("QT_QUICK_CONTROLS_STYLE").is_none() {
         QQuickStyle::set_style(&QString::from("Basic"));
@@ -71,4 +72,5 @@ fn main() {
         app.exec();
     }
     app::save_on_quit();
+    update::relaunch_if_asked();
 }

@@ -34,6 +34,7 @@ use crate::import::{self, Imports, Input};
 use crate::mpv;
 use crate::player::Player;
 use crate::report;
+use crate::update::Updater;
 
 pub const PICK_PATH: &str = "pickPath";
 const HANDOFF_OFFER: Duration = Duration::from_secs(15);
@@ -44,8 +45,19 @@ const RECENT_CARDS: usize = 20;
 const CONNECT_LIMIT: Duration = Duration::from_secs(4);
 const LOCK_RECHECK: Duration = Duration::from_secs(3);
 const NO_RECHECK: Duration = Duration::from_secs(365 * 24 * 3600);
-const LIBRARY_READS: [&str; 10] =
-    ["favorites", "savedAlbums", "savedPlaylists", "followed", "history", "playlists", "playlist", "library", "folders", "dislikes"];
+const LIBRARY_READS: [&str; 11] = [
+    "favorites",
+    "savedAlbums",
+    "savedPlaylists",
+    "followed",
+    "history",
+    "playlists",
+    "recentPlaylists",
+    "playlist",
+    "library",
+    "folders",
+    "dislikes",
+];
 
 #[derive(Serialize)]
 pub struct Method {
@@ -110,7 +122,9 @@ pub const METHODS: &[Method] = &[
     m("pickPath", "library", "title: string, folder?: bool, filters?: string[], start?: string", "{status: picked|cancelled|unavailable, path?}", "Ask the desktop's file chooser portal for a file or a folder. Only the window can call this: a dialog is never opened from the socket or MCP, which get `api.window_only`. `filters` read like `CSV files (*.csv)`. `unavailable` means there is no portal or it failed, and the window then shows its own dialog."),
     m("download", "library", "track?: Track, tracks?: Track[]", "null", "Download best audio of a track, or of several, to the downloads folder in the background; a toast reports each result. A finished file is linked to its track, which then plays from the file without the network."),
     m("downloads", "library", "", "{name, path, size, modified}[]", "Finished downloads, newest first."),
+    m("downloadedTracks", "library", "", "string[]", "Ids of tracks linked to a downloaded file that still exists."),
     m("playlists", "library", "", "Playlist[]", "Local playlists with counts and a cover (tracks omitted)."),
+    m("recentPlaylists", "library", "", "Playlist[]", "Local playlists like `playlists`, the one last added to first."),
     m("playlist", "library", "id: int", "Playlist|null", "One local playlist with its tracks in order; `at` on each track is when it was added (ms since 1970)."),
     m("createPlaylist", "library", "name: string", "int", "Create a playlist; returns its id."),
     m("renamePlaylist", "library", "id: int, name: string", "null", "Rename a playlist."),
@@ -149,6 +163,7 @@ pub const METHODS: &[Method] = &[
     m("bugReportAttach", "meta", "name: string, ui?: object, note?: string", "null", "Add what the window saw (`ui`) or the phrase (`note`) to the report `name`. The window calls this itself after `bugReport`."),
     m("bugReportPack", "meta", "name: string, note?: string, reveal?: bool", "{path, shown}", "Pack the report `name` into `reports/<name>.zip` and, unless `reveal` is false, show that file in the file manager. `note` is stored first, as in `bugReportAttach`. `shown` says whether a file manager was asked to show it. The archive holds the screenshot and the track list, so it shows what the person listens to; nothing is sent anywhere."),
     m("dependencies", "meta", "", "{desktop, components: {id, version, source, state}[], details}", "What Snellar runs on here and whether it really works: mpv, yt-dlp, ffmpeg, Qt, audio output, Discord, file portal, tray, window blur. `state` is ok, missing, broken, off, on, waiting or none. Reads only: nothing is installed and the desktop is not changed, here or anywhere else in this API. `details` is the same list as text, as bug reports hold it."),
+    m("updateStatus", "meta", "", "{phase, version, checked, latest, percent, code?, place}", "How the self-update stands. `phase` is `development` (not an AppImage), `elsewhere` (an AppImage outside the installer's folder, named in `place`), `unsigned` (an installed AppImage built without an update key, it never checks), `off` (the `autoUpdate` setting), `idle`, `current` (a check found nothing newer), `checking`, `downloading` (`percent`), `ready` (`latest` starts at the next launch) or `failed` (`code` says why, the installed file was not touched, the next check tries again). `version` is this build for people; `checked` is the last time the release was read, in ms since 1970, 0 for never. Reads only: a check is never started from here."),
     m("reports", "meta", "", "Report[]", "Saved bug reports, newest first: `{name, path, note, track, screen, files}`. `snellar ctl reports` prints them as lines."),
 ];
 
@@ -159,7 +174,7 @@ pub fn markdown() -> String {
     out.push_str("Call: `POST /call/<method>` on the Unix socket `$XDG_RUNTIME_DIR/snellar.sock` (override: `SNELLAR_SOCK`), or `snellar ctl <method> '<json>'`.\n\n");
     out.push_str("```sh\ncurl --unix-socket \"$XDG_RUNTIME_DIR/snellar.sock\" -d '{\"q\":\"daft punk\"}' http://snellar/call/search\nsnellar ctl now\n```\n\n");
     out.push_str("Errors: status 400 with `{\"error\": \"...\", \"code\": \"...\"}` (bad arguments or a failed call), 404 for an unknown method. `error` is technical text for logs and scripts; `code` is stable and listed under Error codes below. The window shows its own translated text for the code, never `error`.\n\n");
-    out.push_str("Events: `GET /events` is a Server-Sent Events stream: `snapshot` on connect, then `state`, `position` (about 5 per second while playing), `current`, `queue`, `liked`, `history` (a play was added to the history), `tools` (yt-dlp was fetched or checked), `modes`, `stream` (what plays now: `{codec, bitrate, sampleRate, gain, leveling, local}`, bitrate in kbps and 0 when unknown), `toast` (`{code, cause?, arg?, detail?}`: `code` and `cause` from Error codes below, `arg` a name to show, such as the downloaded track, `detail` technical text), `nudge` (a card to show: `{id, kind, track?, text?, cover?, timeout?, actions: [{id, primary?}]}`; `kind` `handoff` offers to continue `track`, with the actions `continue` and `ignore`; the window words the card itself; answer it with `nudgeAnswer`).\n\n");
+    out.push_str("Events: `GET /events` is a Server-Sent Events stream: `snapshot` on connect, then `state`, `position` (about 5 per second while playing), `current`, `queue`, `liked`, `history` (a play was added to the history), `tools` (yt-dlp was fetched or checked), `update` (`updateStatus` has a new answer), `modes`, `stream` (what plays now: `{codec, bitrate, sampleRate, gain, leveling, local}`, bitrate in kbps and 0 when unknown), `toast` (`{code, cause?, arg?, detail?}`: `code` and `cause` from Error codes below, `arg` a name to show, such as the downloaded track, `detail` technical text), `nudge` (a card to show: `{id, kind, track?, text?, cover?, timeout?, actions: [{id, primary?}]}`; `kind` `handoff` offers to continue `track`, with the actions `continue` and `ignore`; the window words the card itself; answer it with `nudgeAnswer`).\n\n");
     out.push_str("Types: `Track {id, title, artists: [{id, name}], album?: {id, name}, duration, thumb, explicit}`, other shapes are in `crates/core/src/model.rs`.\n\n");
     out.push_str("Track ids name their source: `yt:` and the YouTube video id, as in `yt:dQw4w9WgXcQ`. Every argument that takes a track id or a `Track` also accepts the bare 11-character video id for now; answers always carry the prefixed form. Album, artist and playlist ids are unchanged.\n");
     let mut group = "";
@@ -193,6 +208,7 @@ pub struct Backend {
     ytm: Arc<Ytm>,
     recs: Arc<Recs>,
     downloads: Arc<Downloads>,
+    updates: Arc<Updater>,
     library: Arc<Library>,
     resolver: Arc<Resolver>,
     data: PathBuf,
@@ -422,6 +438,7 @@ impl Backend {
         Arc::new(Backend {
             handoff: Handoff::new(playing, HANDOFF_OFFER),
             ui: ui.clone(),
+            updates: Updater::for_this_run(library.clone(), resolver.route(), ui.clone()),
             downloads: Downloads::new(ui, library.clone(), resolver.clone()),
             source,
             recs,
@@ -480,6 +497,18 @@ impl Backend {
         let ui = self.ui.clone();
         let tell = move |percent: u8| ui(UiEvent::Toast(Toast::new(Code::YtdlpFetching).arg(percent.to_string())));
         crate::ytdlp::keep(&self.library, self.resolver.route(), asked, &tell).await
+    }
+
+    pub fn start_updates(&self) {
+        self.updates.clone().start();
+    }
+
+    pub fn check_update(&self) {
+        self.updates.check_now();
+    }
+
+    pub fn restart_for_update(&self) -> bool {
+        self.updates.restart()
     }
 
     pub fn started_player(&self) -> Option<&Arc<Player>> {
@@ -745,6 +774,7 @@ impl Backend {
                 Value::Null
             }
             "downloads" => json!(self.downloads.list()),
+            "downloadedTracks" => json!(self.library.downloaded()),
             PICK_PATH => {
                 arg::<String>(a, "title")?;
                 return Err(Code::ApiWindowOnly.err("pickPath opens a dialog, so only the window can call it"));
@@ -754,6 +784,7 @@ impl Backend {
                 n => n,
             })),
             "playlists" => json!(lib.playlists()),
+            "recentPlaylists" => json!(lib.recent_playlists()),
             "playlist" => json!(lib.playlist(arg(a, "id")?)),
             "createPlaylist" => json!(lib.create_playlist(&arg::<String>(a, "name")?)?),
             "renamePlaylist" => {
@@ -871,6 +902,9 @@ impl Backend {
                 if let Some(proxy) = proxy {
                     self.resolver.route().set(proxy);
                 }
+                if key == "autoUpdate" {
+                    self.updates.toggled();
+                }
                 if key == "ytdlpFallback" {
                     self.resolver.set_ytdlp(value.as_bool().unwrap_or(true));
                 }
@@ -922,6 +956,7 @@ impl Backend {
             }
             "reports" => report::list(&self.data),
             "dependencies" => self.probe().report().await,
+            "updateStatus" => json!(self.updates.status()),
             _ => return Err(Code::ApiMethod.err(format!("unknown method `{method}`"))),
         })
     }
@@ -1029,6 +1064,8 @@ mod tests {
             ("clearHistory", json!({}), Expect::Ok),
             ("download", json!({ "track": t() }), Expect::Ok),
             ("downloads", json!({}), Expect::Ok),
+            ("downloadedTracks", json!({}), Expect::Ok),
+            ("recentPlaylists", json!({}), Expect::Ok),
             ("pickPath", json!({ "title": "x" }), Expect::Reachable),
             ("playlists", json!({}), Expect::Ok),
             ("playlist", json!({ "id": 1 }), Expect::Ok),
@@ -1066,6 +1103,7 @@ mod tests {
             ("bugReportPack", json!({ "name": "2026-01-01_00-00-00" }), Expect::Reachable),
             ("reports", json!({}), Expect::Ok),
             ("dependencies", json!({}), Expect::Ok),
+            ("updateStatus", json!({}), Expect::Ok),
         ]
     }
 
@@ -1074,6 +1112,62 @@ mod tests {
         let covered: HashSet<_> = cases().iter().map(|c| c.0).collect();
         let documented: HashSet<_> = METHODS.iter().map(|m| m.name).collect();
         assert_eq!(covered, documented, "METHODS and the test table must list the same methods");
+    }
+
+    fn dispatched() -> HashSet<String> {
+        let source = include_str!("api.rs");
+        let start = source.find("    async fn answer(&self, method: &str, a: &Value)").unwrap();
+        let end = start + source[start..].find("            _ => return Err(Code::ApiMethod").unwrap();
+        let constants = [("PICK_PATH", PICK_PATH)];
+        let mut names = HashSet::new();
+        for line in source[start..end].lines() {
+            let Some(head) = line.strip_prefix("            ").and_then(|l| l.split_once(" =>")).map(|(h, _)| h) else {
+                continue;
+            };
+            if head.starts_with(' ') || head.starts_with('}') {
+                continue;
+            }
+            for name in head.split(" | ") {
+                let name = match name.strip_prefix('"').and_then(|n| n.strip_suffix('"')) {
+                    Some(literal) => literal,
+                    None => {
+                        constants.iter().find(|c| c.0 == name).unwrap_or_else(|| panic!("unknown arm `{name}`: add it to `constants`")).1
+                    }
+                };
+                names.insert(name.to_string());
+            }
+        }
+        names
+    }
+
+    #[test]
+    fn every_documented_method_has_a_dispatch_arm() {
+        let arms = dispatched();
+        assert!(arms.len() > 50, "only {} arms read from `answer`", arms.len());
+        let documented: HashSet<String> = METHODS.iter().map(|m| m.name.to_string()).collect();
+        let mut missing: Vec<_> = documented.difference(&arms).collect();
+        let mut undocumented: Vec<_> = arms.difference(&documented).collect();
+        missing.sort();
+        undocumented.sort();
+        assert!(missing.is_empty(), "in METHODS but not dispatched: {missing:?}");
+        assert!(undocumented.is_empty(), "dispatched but not in METHODS: {undocumented:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn recent_playlists_put_the_last_added_to_first() {
+        let dir = library_dir("recent-lists");
+        let b = backend(&dir).await;
+        let mut lists = Vec::new();
+        for name in ["first", "second", "third"] {
+            lists.push(b.dispatch("createPlaylist", &json!({ "name": name })).await.unwrap());
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        b.dispatch("addToPlaylist", &json!({ "id": lists[0], "track": track("t1") })).await.unwrap();
+        let recent = b.dispatch("recentPlaylists", &json!({})).await.unwrap();
+        let ids: Vec<_> = recent.as_array().unwrap().iter().map(|p| p["id"].clone()).collect();
+        assert_eq!(ids, vec![lists[0].clone(), lists[2].clone(), lists[1].clone()]);
+        assert_eq!(recent[0]["name"], "first");
+        assert_eq!(recent[0]["count"], 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]

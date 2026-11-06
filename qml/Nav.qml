@@ -11,6 +11,7 @@ QtObject {
     property bool nowPlaying: false
     property bool audio: false
     property bool keys: false
+    property bool picking: false
     property string tab: "next"
 
     property var renaming: null
@@ -31,7 +32,13 @@ QtObject {
         params = entry.params
     }
 
+    function leaveOverlays() {
+        nowPlaying = false
+        audio = false
+    }
+
     function go(name, args) {
+        leaveOverlays()
         if (name === view && JSON.stringify(args || {}) === JSON.stringify(params)) return
         stack = stack.concat([here()])
         ahead = []
@@ -44,12 +51,18 @@ QtObject {
     }
 
     function root(name) {
+        leaveOverlays()
         stack = []
         ahead = []
         show({ view: name, params: ({}) })
     }
 
     function back() {
+        if (audio || nowPlaying) {
+            if (audio) audio = false
+            else nowPlaying = false
+            return
+        }
         if (!stack.length) return
         const top = stack[stack.length - 1]
         stack = stack.slice(0, -1)
@@ -59,6 +72,7 @@ QtObject {
 
     function forward() {
         if (!ahead.length) return
+        leaveOverlays()
         const next = ahead[ahead.length - 1]
         ahead = ahead.slice(0, -1)
         stack = stack.concat([here()])
@@ -75,6 +89,7 @@ QtObject {
         renaming = id
     }
     function search(q) {
+        leaveOverlays()
         query = q
         if (view === "search") params = { q: q }
         else go("search", { q: q })
