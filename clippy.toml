@@ -1,0 +1,7 @@
+disallowed-methods = [
+    { path = "dirs::data_dir", reason = "only snellar_core::product resolves the data root, so tests never reach the owner's library" },
+    { path = "dirs::data_local_dir", reason = "only snellar_core::product resolves the data root, so tests never reach the owner's library" },
+    { path = "dirs::cache_dir", reason = "only snellar_core::product resolves the cache root, so tests never reach the owner's cache" },
+    { path = "std::process::Command::output", reason = "blocks the thread until the child exits, which stalls the runtime in async code; use tokio::process::Command" },
+    { path = "std::process::Command::status", reason = "blocks the thread until the child exits, which stalls the runtime in async code; use tokio::process::Command" },
+]

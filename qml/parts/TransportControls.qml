@@ -2,41 +2,60 @@ import QtQuick
 import Snellar
 
 Row {
-    spacing: Theme.spaceMd
+    id: transport
+    property bool compact: false
+    readonly property real stepSize: compact ? Theme.controlSm : Theme.controlMd
+    readonly property real disc: compact ? Theme.controlLg : Theme.playPill
+    spacing: compact ? Theme.spaceSm : Theme.spaceMd
 
-    IconButton {
+    ModeButton {
         anchors.verticalCenter: parent.verticalCenter
         icon: "shuffle"
         tip: qsTr("Shuffle")
-        size: Theme.controlSm
-        iconSize: Theme.iconSm
-        active: Api.shuffle
-        onClicked: Api.call("shuffle", { on: !Api.shuffle })
+        on: Api.shuffle
+        reach: (Theme.controlLg - size) / 2
+        onClicked: Api.toggleShuffle()
     }
     IconButton {
         anchors.verticalCenter: parent.verticalCenter
         icon: "prev"
         tip: qsTr("Previous")
-        size: Theme.controlMd
+        size: transport.stepSize
         iconSize: Theme.iconMd
+        reach: (Theme.controlLg - size) / 2
         color: Theme.text
         onClicked: Api.prev()
     }
 
     Item {
-        width: Theme.playPill + Theme.spaceSm
-        height: Theme.playPill
+        width: transport.disc + Theme.spaceSm
+        height: transport.disc
         anchors.verticalCenter: parent.verticalCenter
 
         Rectangle {
+            id: playFace
+            objectName: "playFace"
             anchors.centerIn: parent
-            width: playArea.pressed ? Theme.playPill + Theme.spaceSm : Theme.playPill
-            height: playArea.pressed ? Theme.controlLg : Theme.playPill
-            radius: Api.playing ? Theme.rLg : height / 2
+            width: transport.disc
+            height: transport.disc
+            radius: height / 2 + (Theme.rLg - height / 2) * shape.value
             color: Theme.accent
-            Behavior on width { NumberAnimation { duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
-            Behavior on height { NumberAnimation { duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
-            Behavior on radius { NumberAnimation { duration: Theme.m3; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+            scale: lens.value
+
+            PressLens {
+                id: lens
+                down: playArea.pressed
+                w: playFace.width
+                h: playFace.height
+            }
+
+            SpringValue {
+                id: shape
+                reducible: true
+                zeta: Motion.controlDamping
+                response: Motion.controlResponse
+                target: Api.playing ? 1 : 0
+            }
 
             Icon {
                 anchors.centerIn: parent
@@ -50,14 +69,13 @@ Row {
                 id: playArea
                 anchors.fill: parent
                 hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
                 onClicked: Api.toggle()
             }
 
-            Loader {
-                anchors.fill: parent
-                active: playArea.containsMouse && !playArea.pressed
-                sourceComponent: Tip { text: Api.playing ? qsTr("Pause") : qsTr("Play") }
+            TipLoader {
+                want: playArea.containsMouse && !playArea.pressed
+                cut: playArea.pressed
+                hint: Api.playing ? qsTr("Pause") : qsTr("Play")
             }
         }
     }
@@ -66,18 +84,18 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
         icon: "next"
         tip: qsTr("Next")
-        size: Theme.controlMd
+        size: transport.stepSize
         iconSize: Theme.iconMd
+        reach: (Theme.controlLg - size) / 2
         color: Theme.text
         onClicked: Api.next()
     }
-    IconButton {
+    ModeButton {
         anchors.verticalCenter: parent.verticalCenter
         icon: Api.repeat === "one" ? "repeatOne" : "repeat"
         tip: Api.repeat === "one" ? qsTr("Repeat one") : qsTr("Repeat")
-        size: Theme.controlSm
-        iconSize: Theme.iconSm
-        active: Api.repeat !== "off"
-        onClicked: Api.call("repeat", { mode: Api.repeat === "off" ? "all" : (Api.repeat === "all" ? "one" : "off") })
+        on: Api.repeat !== "off"
+        reach: (Theme.controlLg - size) / 2
+        onClicked: Api.cycleRepeat()
     }
 }

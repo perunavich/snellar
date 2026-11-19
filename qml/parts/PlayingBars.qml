@@ -2,13 +2,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Snellar
 
-Row {
+Item {
     id: bars
     property bool active: Api.playing
     property color color: Theme.accent
     property int step: 0
     readonly property var levels: [[0.9, 0.4, 0.7], [0.5, 0.9, 0.4], [0.7, 0.6, 1.0], [0.4, 0.8, 0.6]]
-    spacing: Theme.lineGap
+    width: 3 * Theme.barWidth + 2 * Theme.lineGap
     height: Theme.barsHeight
 
     Connections {
@@ -21,6 +21,7 @@ Row {
         model: 3
         delegate: Rectangle {
             required property int index
+            x: index * (Theme.barWidth + Theme.lineGap)
             anchors.bottom: bars.bottom
             width: Theme.barWidth
             radius: Theme.barWidth / 2

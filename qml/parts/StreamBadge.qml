@@ -34,8 +34,8 @@ Text {
     elide: Text.ElideRight
 
     HoverHandler { id: hover }
-    Loader {
-        active: hover.hovered && badge.detail.length > 0
-        sourceComponent: Tip { text: badge.detail }
+    TipLoader {
+        want: hover.hovered && badge.detail.length > 0
+        hint: badge.detail
     }
 }

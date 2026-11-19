@@ -8,7 +8,9 @@ fn qml_files(dir: &Path, out: &mut Vec<String>) {
     let mut entries: Vec<_> = std::fs::read_dir(dir).unwrap().flatten().map(|e| e.path()).collect();
     entries.sort();
     for p in entries {
-        if p.is_dir() {
+        if p == Path::new("qml/dev") && std::env::var_os("CARGO_FEATURE_DEV_QML").is_none() {
+            continue;
+        } else if p.is_dir() {
             qml_files(&p, out);
         } else if p.extension().is_some_and(|e| e == "qml" || e == "js") {
             out.push(p.to_string_lossy().into_owned());
@@ -47,9 +49,9 @@ fn shaders() -> Vec<String> {
     out
 }
 
-fn fonts() -> Vec<String> {
-    println!("cargo:rerun-if-changed=fonts");
-    let mut out: Vec<String> = std::fs::read_dir("fonts").unwrap().flatten().map(|e| e.path().to_string_lossy().into_owned()).collect();
+fn files_in(dir: &str) -> Vec<String> {
+    println!("cargo:rerun-if-changed={dir}");
+    let mut out: Vec<String> = std::fs::read_dir(dir).unwrap().flatten().map(|e| e.path().to_string_lossy().into_owned()).collect();
     out.sort();
     out
 }
@@ -109,20 +111,8 @@ fn commit() -> String {
     git(&["rev-parse", "--short=9", "HEAD"]).unwrap_or_else(|| "unknown".into())
 }
 
-fn update_key() {
-    let src = Path::new("packaging/update-key.pub");
-    println!("cargo:rerun-if-changed=packaging");
-    let key = std::fs::read_to_string(src).unwrap_or_default();
-    assert!(key.is_empty() || key.starts_with("-----BEGIN PUBLIC KEY-----"), "{} is not a PEM public key", src.display());
-    let dst = Path::new(&std::env::var("OUT_DIR").unwrap()).join("update-key.pub");
-    if std::fs::read_to_string(&dst).ok().as_deref() != Some(key.as_str()) {
-        std::fs::write(dst, key).unwrap();
-    }
-}
-
 fn main() {
     println!("cargo:rustc-env=SNELLAR_COMMIT={}", commit());
-    update_key();
     let mut files = Vec::new();
     qml_files(Path::new("qml"), &mut files);
     println!("cargo:rerun-if-changed=qml");
@@ -136,6 +126,7 @@ fn main() {
         "qml/Nudges.qml",
         "qml/Imports.qml",
         "qml/Words.qml",
+        "qml/morph/Motion.qml",
     ];
     let module =
         QmlModule::new("Snellar").qml_files(files.iter().map(|f| QmlFile::from(f.as_str()).singleton(singletons.contains(&f.as_str()))));
@@ -145,9 +136,10 @@ fn main() {
         .qt_module("Gui")
         .qt_module("Quick")
         .qt_module("QuickControls2")
-        .qrc_resources(shaders().into_iter().chain(fonts()).map(QResourceFile::new).chain(translations()))
+        .qrc_resources(shaders().into_iter().chain(files_in("fonts")).chain(files_in("art")).map(QResourceFile::new).chain(translations()))
         .files(["src/bridge.rs"])
         .cpp_file("src/qtlog.cpp")
         .cpp_file("src/windowbar.cpp")
+        .cpp_file("src/icons.cpp")
         .build();
 }

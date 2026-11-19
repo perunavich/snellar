@@ -8,6 +8,7 @@ MenuItem {
     property bool available: true
     property bool divider: false
     property bool marked: false
+    property string glyph
     readonly property real gap: divider ? Theme.spaceSm + 1 : 0
 
     visible: shown
@@ -16,15 +17,27 @@ MenuItem {
     implicitHeight: Theme.controlMd + gap
     topPadding: gap
     leftPadding: Theme.spaceMd
-    rightPadding: Theme.spaceMd
+    rightPadding: marked || subMenu ? Theme.iconSm + 2 * Theme.spaceSm : Theme.spaceMd
     font: item.menu ? item.menu.font : Qt.font({ pixelSize: Theme.fsBody })
 
-    contentItem: Text {
-        text: item.text
-        color: item.enabled ? (item.marked ? Theme.accent : Theme.text) : Theme.text3
-        font: item.font
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+    contentItem: Item {
+        implicitWidth: (mark.visible ? mark.width + Theme.spaceSm : 0) + words.implicitWidth
+        Icon {
+            id: mark
+            anchors.verticalCenter: parent.verticalCenter
+            visible: item.glyph.length > 0
+            name: item.glyph
+            size: Theme.iconSm
+            color: words.color
+        }
+        Text {
+            id: words
+            anchors { left: parent.left; leftMargin: mark.visible ? mark.width + Theme.spaceSm : 0; right: parent.right; verticalCenter: parent.verticalCenter }
+            text: item.text
+            color: item.enabled ? (item.marked ? Theme.accent : Theme.text) : Theme.text3
+            font: item.font
+            elide: Text.ElideRight
+        }
     }
 
     indicator: Icon {
@@ -49,8 +62,7 @@ MenuItem {
         Rectangle {
             visible: item.divider
             y: Theme.spaceXs
-            x: -Theme.spaceSm
-            width: parent.width + 2 * Theme.spaceSm
+            width: parent.width
             height: 1
             color: Theme.separator
         }

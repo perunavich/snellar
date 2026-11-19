@@ -6,8 +6,15 @@ Flow {
     id: swatches
     property var names: ({})
     readonly property var options: ["glass", "lagoon", "teal", "lilac", "coral", "cover"]
+    readonly property int cell: Math.max(Theme.controlSm + 2 * Theme.spaceSm, Theme.snap(options.reduce((widest, o) => Math.max(widest, metrics.advanceWidth(names[o] || "")), 0)))
     signal picked(string name)
-    spacing: Theme.spaceLg
+    spacing: Theme.spaceSm
+
+    FontMetrics {
+        id: metrics
+        font.pixelSize: Theme.fsCaption
+        font.weight: Font.Medium
+    }
 
     Repeater {
         model: swatches.options
@@ -16,7 +23,7 @@ Flow {
             required property string modelData
             readonly property bool chosen: Theme.accentName === modelData
             readonly property bool fromCover: modelData === "cover"
-            width: Math.max(dot.width, name.implicitWidth)
+            width: swatches.cell
             height: dot.height + Theme.spaceXs + name.implicitHeight
 
             Item {
@@ -24,8 +31,9 @@ Flow {
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: Theme.controlSm
                 height: Theme.controlSm
-                scale: area.pressed ? 0.9 : 1
-                Behavior on scale { NumberAnimation { duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+                scale: lens.value
+
+                PressLens { id: lens; down: area.pressed; w: dot.width; h: dot.height }
 
                 Rectangle {
                     anchors.fill: parent
@@ -76,7 +84,7 @@ Flow {
                 font.pixelSize: Theme.fsCaption
                 font.weight: Font.Medium
             }
-            MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: swatches.picked(option.modelData) }
+            MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; onClicked: swatches.picked(option.modelData) }
         }
     }
 }

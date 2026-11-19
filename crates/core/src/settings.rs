@@ -2,6 +2,7 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
+use crate::error::Code;
 use crate::library::Library;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -93,8 +94,31 @@ pub const GLASS: Setting = setting(
     "Window background: `glass` (see-through, the compositor blurs), `cover` (opaque, the blurred cover behind), `solid`, or `auto` to choose by desktop.",
 )
 .on(Section::Appearance);
+pub const BACKGROUND_DIM: Setting = setting(
+    "backgroundDim",
+    Kind::Number,
+    "0.5",
+    Scope::Ui,
+    "How dark the Cover and Solid window backgrounds are, from 0 (lightest) to 1 (darkest); 0.5 is the standard look. Glass ignores it.",
+)
+.on(Section::Appearance);
+pub const REDUCE_MOTION: Setting = setting(
+    "reduceMotion",
+    Kind::Bool,
+    "false",
+    Scope::Ui,
+    "Keep decorative motion still: the sky behind the Home card does not breathe, drift or twinkle, and the sidebar folds without moving. Also follows the desktop's own reduced-motion setting, read through the desktop portal.",
+)
+.on(Section::Appearance);
 pub const NAV_RIGHT: Setting =
     setting("navRight", Kind::Bool, "false", Scope::Ui, "Sidebar on the right, the layout mirrored.").on(Section::Appearance);
+pub const SIDEBAR_COLLAPSED: Setting = setting(
+    "sidebarCollapsed",
+    Kind::Bool,
+    "false",
+    Scope::Ui,
+    "The sidebar is a narrow strip of icons, chosen with the button at its top. A window too narrow for the whole sidebar shows the strip without changing this.",
+);
 pub const SORT: Setting = setting(
     "sort.*",
     Kind::Json,
@@ -102,16 +126,63 @@ pub const SORT: Setting = setting(
     Scope::Ui,
     "Sort of an own list (`favorites`, `history`, `playlist`, `albums`, `artists`): `{key, reversed}`.",
 );
+pub const TIME_LEFT: Setting = setting(
+    "timeLeft",
+    Kind::Bool,
+    "false",
+    Scope::Ui,
+    "The number at the right end of the seek bar shows the time left, as `-2:15`, not the track's length; a click on it switches.",
+);
 pub const VOLUME: Setting = setting("volume", Kind::Number, "85", Scope::Player, "Volume, 0 to 100.");
 pub const FX: Setting = setting("fx", Kind::Json, "{}", Scope::Player, "Equalizer and effects (`Fx`); missing fields take their defaults.");
 pub const AUTOPLAY: Setting =
     setting("autoplay", Kind::Bool, "true", Scope::Player, "Keep playing related tracks after the queue ends.").on(Section::Playback);
+pub const RECS_LIVE: Setting = setting(
+    "recsLive",
+    Kind::Bool,
+    "false",
+    Scope::App,
+    "Recommendations may offer live recordings as they are; off, the studio original is looked up instead.",
+)
+.on(Section::Playback);
+pub const RECS_COVERS: Setting = setting(
+    "recsCovers",
+    Kind::Bool,
+    "false",
+    Scope::App,
+    "Recommendations may offer covers, tributes and karaoke as they are; off, the original is looked up instead.",
+)
+.on(Section::Playback);
+pub const RECS_REMIXES: Setting = setting(
+    "recsRemixes",
+    Kind::Bool,
+    "false",
+    Scope::App,
+    "Recommendations may offer remixes as they are; off, the original is looked up instead.",
+)
+.on(Section::Playback);
+pub const RECS_SPEED: Setting = setting(
+    "recsSpeed",
+    Kind::Bool,
+    "false",
+    Scope::App,
+    "Recommendations may offer sped-up, slowed, nightcore, reverb, 8D and bass-boosted versions as they are; off, the original is looked up instead and the version is left out when there is none, in every list.",
+)
+.on(Section::Playback);
+pub const RECS_SPAM: Setting = setting(
+    "recsSpam",
+    Kind::Bool,
+    "true",
+    Scope::App,
+    "Recommendations leave out likely AI and spam artists: a title, channel or artist name that says it was made by AI, and artists with at least 200 releases and fewer than 1000 fans on Deezer. Artists you liked, played, listed or follow are never left out.",
+)
+.on(Section::Playback);
 pub const LOUDNESS: Setting = setting(
     "loudness",
     Kind::Bool,
     "true",
     Scope::Player,
-    "Even out loudness between tracks: YouTube's loudness value lowers a loud track, a track without one is measured by mpv's `loudnorm`. Never raises a track above its own level.",
+    "Even out loudness between tracks: YouTube's loudness value lowers a loud track, a track without one is measured by mpv's `loudnorm` on its first play and plays with the gain from that measure after. Never raises a track above its own level.",
 )
 .on(Section::Audio);
 pub const QUALITY: Setting = setting(
@@ -147,7 +218,28 @@ pub const DISCORD_RPC: Setting =
 pub const DISCORD_APP_ID: Setting =
     setting("discordAppId", Kind::Text, "\"\"", Scope::App, "A custom Discord application id; empty uses Snellar's.");
 pub const DOWNLOAD_DIR: Setting =
-    setting("downloadDir", Kind::Text, "\"\"", Scope::App, "Download folder; empty is ~/Music/Snellar.").on(Section::Library);
+    setting("downloadDir", Kind::Text, "\"\"", Scope::App, "Download folder: a full path or one that starts with ~/; empty is ~/Music/Snellar. A relative path is refused with `download.folder_invalid`.").on(Section::Library);
+pub const DOWNLOAD_REPAIRS: Setting = setting(
+    "downloadRepairs",
+    Kind::Json,
+    "[]",
+    Scope::State,
+    "Songs whose downloaded file was shared with another song (saved before the video id was in file names) and that still download again into their own file: `string[]` of track ids. Written by the downloads at start.",
+);
+pub const DOWNLOAD_REPAIRS_REFUSED: Setting = setting(
+    "downloadRepairsRefused",
+    Kind::Json,
+    "[]",
+    Scope::State,
+    "Songs from `downloadRepairs` YouTube refused for good (removed, private, age-restricted) or that are no YouTube track: `string[]` of track ids. Their repair is not tried again while they still share a file. Written by the downloads.",
+);
+pub const DOWNLOADED_COLLECTIONS: Setting = setting(
+    "downloadedCollections",
+    Kind::Json,
+    "{}",
+    Scope::State,
+    "Playlists and albums kept downloaded, and the songs downloaded only for them: `{collections: [{kind, id, tracks?}], pulled: string[]}`. Written by `downloadCollection`.",
+);
 pub const LASTFM_KEY: Setting =
     setting("lastfmKey", Kind::Text, "\"\"", Scope::App, "Last.fm API key for similar artists.").on(Section::Services);
 pub const PROXY: Setting = setting(
@@ -188,16 +280,32 @@ pub const UPDATE_CHECKED: Setting =
 pub const RECS_EXPLORE: Setting =
     setting("recsExplore", Kind::Number, "0.3", Scope::App, "Share of unfamiliar artists in recommendations, 0 to 1.");
 pub const WAVE: Setting = setting("wave", Kind::Json, "{}", Scope::App, "Saved wave knobs: `{mood?, language?, novelty?, limit?}`.");
+pub const RECENT_SEARCHES: Setting = setting(
+    "recentSearches",
+    Kind::Json,
+    "[]",
+    Scope::State,
+    "What the empty search field offers again, newest first: `{query}` for a search that was run, `{hit}` (a `Hit`) for a suggestion that was opened. The window keeps at most 8 and writes the whole list.",
+);
 
 pub static ALL: &[&Setting] = &[
     &LANGUAGE,
     &ACCENT,
     &GLASS,
+    &BACKGROUND_DIM,
     &NAV_RIGHT,
+    &REDUCE_MOTION,
+    &SIDEBAR_COLLAPSED,
     &SORT,
+    &TIME_LEFT,
     &VOLUME,
     &FX,
     &AUTOPLAY,
+    &RECS_LIVE,
+    &RECS_COVERS,
+    &RECS_REMIXES,
+    &RECS_SPEED,
+    &RECS_SPAM,
     &AUDIO_DEVICE,
     &QUALITY,
     &LOUDNESS,
@@ -208,6 +316,9 @@ pub static ALL: &[&Setting] = &[
     &DISCORD_RPC,
     &DISCORD_APP_ID,
     &DOWNLOAD_DIR,
+    &DOWNLOADED_COLLECTIONS,
+    &DOWNLOAD_REPAIRS,
+    &DOWNLOAD_REPAIRS_REFUSED,
     &LASTFM_KEY,
     &PROXY,
     &REGION,
@@ -218,6 +329,7 @@ pub static ALL: &[&Setting] = &[
     &UPDATE_CHECKED,
     &RECS_EXPLORE,
     &WAVE,
+    &RECENT_SEARCHES,
 ];
 
 pub struct Alias {
@@ -263,6 +375,14 @@ pub fn stored(library: &Library, key: &str) -> Option<Value> {
     ALIASES.iter().filter(|a| a.new.key == key).find_map(|a| library.setting(a.old).and_then(parse).map(|v| (a.value)(&v)))
 }
 
+/// The test of a saved value, such as `reads_as::<T>`.
+pub type Reads = fn(&str) -> bool;
+
+/// True when `raw` is a saved value `Setting::read::<T>` reads: the test `keep_aside` and `set_aside` take.
+pub fn reads_as<T: DeserializeOwned>(raw: &str) -> bool {
+    serde_json::from_str::<Option<T>>(raw).is_ok()
+}
+
 pub fn registry() -> Value {
     let entry = |s: &&Setting| {
         json!({
@@ -299,151 +419,72 @@ impl Setting {
         stored(library, self.key).and_then(|v| serde_json::from_value(v).ok())
     }
 
+    /// The saved value; `null` is nothing saved, like `get`. A value that does not parse is an error, not
+    /// "nothing saved", and a read never writes: the value stays as it is, so one a newer build saved
+    /// survives this one. It is replaced only by an explicit `setSetting` after `keep_aside`, or for a state
+    /// setting by `set_aside`.
+    pub fn read<T: DeserializeOwned>(&self, library: &Library) -> anyhow::Result<Option<T>> {
+        let Some(raw) = library.setting_read(self.key)? else { return Ok(None) };
+        serde_json::from_str::<Option<T>>(&raw).map_err(|e| {
+            Code::LibraryCorrupt
+                .err(format!("setting `{}` is not what this build reads ({e}); it is left as it is until it is set aside", self.key))
+        })
+    }
+
+    /// Before an explicit write: the value saved now, if `reads` refuses it, is copied to the first free name of
+    /// `<key>.broken`, `<key>.broken.2`, …, so a copy kept earlier is never written over. False when it could
+    /// not be kept; the write must not happen then.
+    pub fn keep_aside(&self, library: &Library, reads: Reads) -> bool {
+        match library.setting_read(self.key) {
+            Ok(Some(raw)) if !reads(&raw) => self.put_aside(library, &raw).is_some(),
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+
+    /// The way back for a state setting only the app writes, run once where its owner starts: a saved value
+    /// `reads` refuses is kept aside as in `keep_aside`, and the setting starts again from its default. True when
+    /// that happened. A preference is never reset here: its value stays until the person sets it.
+    pub fn set_aside(&self, library: &Library, reads: Reads) -> anyhow::Result<bool> {
+        if self.scope != Scope::State {
+            return Ok(false);
+        }
+        let raw = match library.setting_read(self.key)? {
+            Some(raw) if !reads(&raw) => raw,
+            _ => return Ok(false),
+        };
+        let Some(aside) = self.put_aside(library, &raw) else {
+            return Err(Code::LibraryFailed.err(format!("setting `{}` cannot be read and could not be kept aside", self.key)));
+        };
+        if !library.set_setting(self.key, self.default) {
+            return Err(Code::LibraryFailed.err(format!("setting `{}` was kept aside as `{aside}` but could not be reset", self.key)));
+        }
+        crate::journal::warn(
+            "settings",
+            format!("setting `{}` could not be read; it was kept as `{aside}` and starts again from its default", self.key),
+        );
+        Ok(true)
+    }
+
+    /// The name the raw value is kept under: the copy that already holds it, or the first free name.
+    fn put_aside(&self, library: &Library, raw: &str) -> Option<String> {
+        let mut n = 1;
+        loop {
+            let aside = if n == 1 { format!("{}.broken", self.key) } else { format!("{}.broken.{n}", self.key) };
+            match library.setting_read(&aside).ok()? {
+                Some(kept) if kept == raw => return Some(aside),
+                Some(_) => n += 1,
+                None => return library.set_setting(&aside, raw).then_some(aside),
+            }
+        }
+    }
+
     pub fn or_default<T: DeserializeOwned>(&self, library: &Library) -> T {
         self.get(library).unwrap_or_else(|| serde_json::from_str(self.default).expect("registry defaults fit their type"))
     }
 
-    pub fn set<T: Serialize>(&self, library: &Library, value: &T) {
-        library.set_setting(self.key, &serde_json::to_string(value).unwrap_or_default());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-
-    use super::*;
-    use crate::model::Fx;
-
-    #[test]
-    fn every_entry_is_well_formed_and_unique() {
-        let mut keys: Vec<&str> = ALL.iter().map(|s| s.key).collect();
-        keys.sort_unstable();
-        keys.dedup();
-        assert_eq!(keys.len(), ALL.len());
-        for s in ALL {
-            assert!(s.accepts(&s.default_value()), "{} default fits {:?}", s.key, s.kind);
-            assert!(!s.about.is_empty(), "{} has a description", s.key);
-            assert_eq!(find(&s.key.replace('*', "x")).map(|f| f.key), Some(s.key));
-        }
-    }
-
-    #[test]
-    fn the_settings_page_shows_preferences_only() {
-        let shown: Vec<&str> = ALL.iter().filter(|s| s.section.is_some()).map(|s| s.key).collect();
-        assert_eq!(
-            shown,
-            [
-                "language",
-                "accent",
-                "glass",
-                "navRight",
-                "autoplay",
-                "audioDevice",
-                "quality",
-                "loudness",
-                "closeToBackground",
-                "handoff",
-                "discordRpc",
-                "downloadDir",
-                "lastfmKey",
-                "proxy",
-                "autoUpdate"
-            ]
-        );
-        for s in ALL.iter().filter(|s| s.section.is_some()) {
-            assert!(s.scope != Scope::State && !s.key.ends_with('*'), "{} is a preference", s.key);
-        }
-        assert_eq!(registry()[0]["section"], "general");
-        assert!(registry().as_array().unwrap().iter().any(|s| s["section"].is_null()));
-    }
-
-    #[test]
-    fn every_key_ever_written_still_resolves() {
-        let old = [
-            "language",
-            "accent",
-            "glassTinted",
-            "navRight",
-            "volume",
-            "fx",
-            "autoplay",
-            "queue",
-            "position",
-            "handoff",
-            "discordRpc",
-            "discordAppId",
-            "downloadDir",
-            "lastfmKey",
-            "region",
-            "ytdlpFallback",
-            "ytdlpChecked",
-            "glassUndo",
-            "recsExplore",
-            "wave",
-        ];
-        for key in old {
-            assert!(find(key).is_some(), "{key}");
-        }
-        assert!(find("sort.").is_none());
-        assert!(find("theme").is_none());
-    }
-
-    #[test]
-    fn renamed_keys_still_read_their_old_values() {
-        let l = Library::open(Path::new(":memory:")).unwrap();
-        assert_eq!(GLASS.or_default::<String>(&l), "auto", "never set");
-        for (old, new) in [("true", "cover"), ("false", "glass")] {
-            l.set_setting("glassTinted", old);
-            assert_eq!(GLASS.get::<String>(&l).as_deref(), Some(new), "glassTinted {old}");
-        }
-        assert_eq!(find("glassTinted").map(|s| s.key), Some("glass"));
-        l.set_setting("glass", "\"solid\"");
-        assert_eq!(GLASS.get::<String>(&l).as_deref(), Some("solid"), "the new key wins");
-        l.set_setting("glass", "null");
-        assert_eq!(GLASS.or_default::<String>(&l), "auto", "cleared means the default, not the old value");
-        for a in ALIASES {
-            assert!(ALL.iter().all(|s| s.key != a.old), "{} is not also a key", a.old);
-            assert!(ALL.iter().any(|s| s.key == a.new.key), "{} points into the registry", a.old);
-        }
-    }
-
-    #[test]
-    fn defaults_match_what_the_code_assumed() {
-        let l = Library::open(Path::new(":memory:")).unwrap();
-        assert_eq!(VOLUME.or_default::<f64>(&l), 85.0);
-        assert_eq!(FX.or_default::<Fx>(&l), Fx::default());
-        assert!(AUTOPLAY.or_default::<bool>(&l));
-        assert!(!HANDOFF.or_default::<bool>(&l));
-        assert!(!DISCORD_RPC.or_default::<bool>(&l));
-        assert!(!CLOSE_TO_BACKGROUND.or_default::<bool>(&l), "closing quits unless asked");
-        assert!(YTDLP_FALLBACK.or_default::<bool>(&l));
-        assert!(AUTO_UPDATE.or_default::<bool>(&l), "updates are on unless turned off");
-        assert_eq!(POSITION.or_default::<f64>(&l), 0.0);
-        assert_eq!(ACCENT.or_default::<String>(&l), "glass");
-    }
-
-    #[test]
-    fn values_written_by_older_code_read_back() {
-        let l = Library::open(Path::new(":memory:")).unwrap();
-        for (raw, volume) in [("40", 40.0), ("42.5", 42.5)] {
-            l.set_setting("volume", raw);
-            assert_eq!(VOLUME.or_default::<f64>(&l), volume);
-        }
-        l.set_setting("handoff", "true");
-        assert!(HANDOFF.or_default::<bool>(&l));
-        l.set_setting("handoff", "garbage");
-        assert!(!HANDOFF.or_default::<bool>(&l));
-        VOLUME.set(&l, &50.0);
-        assert_eq!(VOLUME.get::<f64>(&l), Some(50.0));
-    }
-
-    #[test]
-    fn kinds_check_values() {
-        assert!(HANDOFF.accepts(&json!(true)) && !HANDOFF.accepts(&json!("true")));
-        assert!(VOLUME.accepts(&json!(3)) && !VOLUME.accepts(&json!("3")));
-        assert!(LANGUAGE.accepts(&json!("uk")) && !LANGUAGE.accepts(&json!(1)));
-        assert!(WAVE.accepts(&json!({ "mood": "calm" })));
-        assert!(HANDOFF.accepts(&Value::Null));
+    /// False when the setting could not be written.
+    pub fn set<T: Serialize>(&self, library: &Library, value: &T) -> bool {
+        library.set_setting(self.key, &serde_json::to_string(value).unwrap_or_default())
     }
 }

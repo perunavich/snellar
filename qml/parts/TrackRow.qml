@@ -9,23 +9,26 @@ FocusScope {
     property int rank: 0
     property bool numbered: false
     property bool showAlbum: true
-    property bool removable: false
     property bool inQueue: false
     property bool radio: false
     property bool dated: false
     property bool selected: false
     property var group: []
     property var playlistId: null
+    property bool played: false
     property string from: ""
     property var origin: null
-    signal removeRequested()
+    property real leadInset: 0
     signal pickRequested(int modifiers)
 
     readonly property bool current: !!Api.current && !!track && Api.current.id === track.id
     readonly property color secondary: selected ? Theme.text : Theme.text2
     readonly property bool live: inQueue ? rank === Api.cursor && current : current && Api.playingFrom(from)
     readonly property bool hovered: hover.hovered
-    readonly property bool compact: width < 420
+    readonly property bool compact: width - leadInset < 420
+    readonly property bool albumShown: showAlbum && !!track && !!track.album && width > Theme.rowAlbumFrom
+    readonly property real columns: likeButton.x - Theme.spaceMd - leadInset - lead.width - 2 * Theme.spaceMd - (when.visible ? when.width + Theme.spaceMd : 0)
+    readonly property real titleWidth: albumShown ? Math.min(Theme.titleColumnMax, Math.round(columns * Theme.titleShare)) : columns
 
     height: Theme.rowHeight
     activeFocusOnTab: true
@@ -53,11 +56,13 @@ FocusScope {
     }
 
     Rectangle {
+        objectName: "rowFill"
         anchors.fill: parent
-        radius: Theme.rMd
-        color: row.selected ? Theme.fillStrong : row.current ? Theme.accentFill : row.hovered || row.activeFocus ? Theme.fillGroup : "transparent"
+        radius: Theme.rRow
+        color: row.selected ? Theme.fillStrong : row.current ? Theme.accentFill : row.hovered || row.activeFocus ? Theme.fillHover : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.hover } }
     }
+    FocusRing { target: row; radius: Theme.rRow }
 
     HoverHandler { id: hover }
     DragHandler {
@@ -75,7 +80,7 @@ FocusScope {
         id: tap
         gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: (p, button) => {
-            row.forceActiveFocus()
+            row.forceActiveFocus(Qt.MouseFocusReason)
             if (tapCount === 1) row.pickRequested(tap.point.modifiers)
             if (tapCount === (row.inQueue ? 1 : 2)) row.play()
         }
@@ -87,7 +92,7 @@ FocusScope {
 
     Item {
         id: lead
-        anchors { left: parent.left; leftMargin: Theme.spaceMd; verticalCenter: parent.verticalCenter }
+        anchors { left: parent.left; leftMargin: Theme.spaceMd + row.leadInset; verticalCenter: parent.verticalCenter }
         width: Theme.rowCover
         height: Theme.rowCover
 
@@ -104,13 +109,14 @@ FocusScope {
             visible: !row.numbered
             anchors.fill: parent
             radius: Theme.rArtS
-            px: 96
+            px: Theme.coverRowPx
             url: row.track ? row.track.thumb : ""
+            note: !row.current && !row.hovered
         }
 
         Rectangle {
             anchors.fill: parent
-            radius: Theme.rSm
+            radius: Theme.rArtS
             visible: !row.numbered && (row.current || row.hovered)
             color: Theme.coverShade
         }
@@ -131,19 +137,14 @@ FocusScope {
         MouseArea {
             anchors.fill: parent
             enabled: row.hovered
-            cursorShape: Qt.PointingHandCursor
             onClicked: row.toggle()
         }
     }
 
     Column {
-        anchors {
-            left: lead.right
-            leftMargin: Theme.spaceMd
-            right: albumLink.left
-            rightMargin: Theme.spaceLg
-            verticalCenter: parent.verticalCenter
-        }
+        id: titleColumn
+        anchors { left: lead.right; leftMargin: Theme.spaceMd; verticalCenter: parent.verticalCenter }
+        width: Math.max(0, row.titleWidth)
         spacing: Theme.lineGap
 
         Row {
@@ -171,27 +172,45 @@ FocusScope {
             }
         }
 
-        ArtistLinks {
+        Item {
             width: parent.width
-            artists: row.track ? row.track.artists : []
-            color: row.secondary
+            height: credits.height
+
+            Icon {
+                id: kept
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Api.downloadState(row.track) === "downloaded"
+                width: visible ? Theme.iconXs : 0
+                name: "downloaded"
+                size: Theme.iconXs
+                color: Theme.accent
+            }
+            ArtistLinks {
+                id: credits
+                x: kept.visible ? kept.width + Theme.spaceXs : 0
+                width: parent.width - x
+                artists: row.track ? row.track.artists : []
+                color: row.secondary
+            }
         }
     }
 
     Link {
         id: albumLink
-        anchors { right: when.left; rightMargin: Theme.spaceMd; verticalCenter: parent.verticalCenter }
-        width: row.showAlbum ? Math.max(0, Math.min(implicitWidth, row.width * 0.24)) : 0
-        visible: row.showAlbum && !!row.track && !!row.track.album && row.width > 640
+        anchors { left: titleColumn.right; leftMargin: Theme.spaceMd; verticalCenter: parent.verticalCenter }
+        width: Math.max(0, Math.min(implicitWidth, row.columns - row.titleWidth - Theme.spaceMd))
+        visible: row.albumShown
         text: visible ? row.track.album.name : ""
         color: row.secondary
+        warms: visible ? { method: "album", id: row.track.album.id } : null
+        hit: 0
         onClicked: Nav.album(row.track.album.id)
     }
 
     Text {
         id: when
         anchors { right: likeButton.left; rightMargin: visible ? Theme.spaceMd : 0; verticalCenter: parent.verticalCenter }
-        visible: row.dated && row.width > 760 && text.length > 0
+        visible: row.dated && row.width > Theme.rowDateFrom && text.length > 0
         width: visible ? Theme.dateColumn : 0
         text: row.dated && row.track ? Theme.since(row.track.at) : ""
         color: row.secondary
@@ -226,16 +245,12 @@ FocusScope {
         font.family: Theme.fontMono
     }
 
-    IconButton {
+    MoreButton {
         id: more
         anchors { right: parent.right; rightMargin: Theme.spaceSm; verticalCenter: parent.verticalCenter }
-        size: Theme.controlSm
-        iconSize: Theme.iconSm
-        icon: row.removable ? "close" : "more"
-        tip: row.removable ? qsTr("Remove") : qsTr("More")
-        opacity: row.hovered ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: Theme.hover } }
-        onClicked: row.removable ? row.removeRequested() : spot.toggle(more, 0, more.height)
+        inRow: true
+        rowHovered: row.hovered
+        menu: spot
     }
 
     MenuSpot {
@@ -244,5 +259,6 @@ FocusScope {
         entity: row.group.length > 1 ? row.group : row.track
         queueIndex: row.inQueue ? row.rank : -1
         playlistId: row.playlistId
+        played: row.played
     }
 }

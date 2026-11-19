@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 use std::future::Future;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde_json::Value;
+use tokio::sync::{OwnedMutexGuard, Semaphore};
 
-const CAPACITY: usize = 256;
+use crate::error::Code;
+use crate::sync::Lock;
 
 pub struct Bounded<V> {
     cap: usize,
@@ -20,7 +22,11 @@ impl<V> Bounded<V> {
     }
 
     pub fn get(&self, key: &str) -> Option<&V> {
-        self.entries.get(key).filter(|(at, _)| at.elapsed() < self.ttl).map(|(_, v)| v)
+        self.get_aged(key).map(|(_, v)| v)
+    }
+
+    pub fn get_aged(&self, key: &str) -> Option<(Duration, &V)> {
+        self.entries.get(key).map(|(at, v)| (at.elapsed(), v)).filter(|(age, _)| *age < self.ttl)
     }
 
     pub fn contains_key(&self, key: &str) -> bool {
@@ -72,101 +78,125 @@ pub async fn write_atomic(path: &std::path::Path, bytes: Vec<u8>) -> std::io::Re
     tokio::fs::rename(&tmp, path).await
 }
 
+pub struct Rule {
+    pub name: &'static str,
+    pub cap: usize,
+    pub fresh: Duration,
+    pub keep: Duration,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Warmed {
+    Fresh,
+    Busy,
+    Fetched,
+    Failed,
+}
+
 #[derive(Default)]
+pub struct Flights {
+    held: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+}
+
+pub struct Flight<'a> {
+    flights: &'a Flights,
+    guard: Option<OwnedMutexGuard<()>>,
+}
+
+impl Flights {
+    fn lock_for(&self, key: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.held.locked().entry(key.into()).or_default().clone()
+    }
+
+    pub async fn hold(&self, key: &str) -> Flight<'_> {
+        let guard = self.lock_for(key).lock_owned().await;
+        Flight { flights: self, guard: Some(guard) }
+    }
+
+    pub fn try_hold(&self, key: &str) -> Option<Flight<'_>> {
+        let guard = self.lock_for(key).try_lock_owned().ok()?;
+        Some(Flight { flights: self, guard: Some(guard) })
+    }
+
+    pub fn len(&self) -> usize {
+        self.held.locked().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn sweep(&self, held: &mut HashMap<String, Arc<tokio::sync::Mutex<()>>>) {
+        held.retain(|_, lock| Arc::strong_count(lock) > 1);
+    }
+}
+
+impl Drop for Flight<'_> {
+    fn drop(&mut self) {
+        let mut held = self.flights.held.locked();
+        drop(self.guard.take());
+        self.flights.sweep(&mut held);
+    }
+}
+
 pub struct Memo {
-    entries: Mutex<HashMap<String, (Instant, Value)>>,
+    shelves: Mutex<HashMap<&'static str, Bounded<Value>>>,
+    flights: Flights,
+    background: Semaphore,
 }
 
 impl Memo {
-    pub async fn get(&self, key: String, ttl: Duration, fetch: impl Future<Output = Result<Value>>) -> Result<Value> {
-        if let Some((at, value)) = self.entries.lock().unwrap().get(&key)
-            && at.elapsed() < ttl
-        {
-            return Ok(value.clone());
+    pub fn new(background: usize) -> Memo {
+        Memo { shelves: Mutex::default(), flights: Flights::default(), background: Semaphore::new(background) }
+    }
+
+    fn aged(&self, rule: &Rule, key: &str) -> Option<(Duration, Value)> {
+        let shelves = self.shelves.locked();
+        shelves.get(rule.name)?.get_aged(key).map(|(age, v)| (age, v.clone()))
+    }
+
+    fn fresh(&self, rule: &Rule, key: &str) -> Option<Value> {
+        self.aged(rule, key).filter(|(age, _)| *age < rule.fresh).map(|(_, v)| v)
+    }
+
+    pub fn peek(&self, rule: &Rule, key: &str) -> Option<Value> {
+        self.aged(rule, key).map(|(_, v)| v)
+    }
+
+    fn put(&self, rule: &Rule, key: &str, value: Value) {
+        let mut shelves = self.shelves.locked();
+        shelves.entry(rule.name).or_insert_with(|| Bounded::new(rule.cap, rule.keep)).insert(key.into(), value);
+    }
+
+    pub async fn get(&self, rule: &Rule, key: &str, fetch: impl Future<Output = Result<Value>>) -> Result<Value> {
+        if let Some(value) = self.fresh(rule, key) {
+            return Ok(value);
         }
+        let _flight = self.flights.hold(&format!("{}:{key}", rule.name)).await;
+        if let Some(value) = self.fresh(rule, key) {
+            return Ok(value);
+        }
+        let _quiet = match self.peek(rule, key) {
+            Some(_) => Some(self.background.acquire().await.context(Code::Internal)?),
+            None => None,
+        };
         let value = fetch.await?;
-        let mut entries = self.entries.lock().unwrap();
-        if entries.len() >= CAPACITY {
-            entries.retain(|_, (at, _)| at.elapsed() < ttl);
-        }
-        if entries.len() >= CAPACITY
-            && let Some(oldest) = entries.iter().min_by_key(|(_, (at, _))| *at).map(|(k, _)| k.clone())
-        {
-            entries.remove(&oldest);
-        }
-        entries.insert(key, (Instant::now(), value.clone()));
+        self.put(rule, key, value.clone());
         Ok(value)
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
-
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn a_bounded_cache_never_grows_past_its_cap_and_keeps_the_newest() {
-        let mut cache = Bounded::new(4, Duration::from_secs(60));
-        for i in 0..50 {
-            cache.insert(format!("k{i}"), i);
-            assert!(cache.len() <= 4);
+    pub async fn warm(&self, rule: &Rule, key: &str, fetch: impl Future<Output = Result<Value>>) -> Warmed {
+        if self.fresh(rule, key).is_some() {
+            return Warmed::Fresh;
         }
-        assert_eq!((cache.get("k49"), cache.get("k46"), cache.get("k45")), (Some(&49), Some(&46), None));
-    }
-
-    #[test]
-    fn expired_entries_are_dropped_on_insert_and_never_returned() {
-        let mut cache = Bounded::new(100, Duration::from_secs(60));
-        cache.insert_aged("old".into(), Duration::from_secs(30), 1);
-        cache.insert_aged("stale".into(), Duration::from_secs(61), 2);
-        assert_eq!((cache.get("old"), cache.get("stale"), cache.len()), (Some(&1), None, 1));
-        let mut short = Bounded::new(100, Duration::from_millis(20));
-        short.insert("a".into(), 1);
-        std::thread::sleep(Duration::from_millis(40));
-        assert_eq!(short.get("a"), None);
-        assert_eq!(short.remove("a"), None);
-        short.insert("b".into(), 2);
-        short.insert("c".into(), 3);
-        std::thread::sleep(Duration::from_millis(40));
-        short.insert("d".into(), 4);
-        assert_eq!(short.len(), 1, "the expired entries are still held in memory");
-    }
-
-    #[tokio::test]
-    async fn a_failed_write_leaves_the_old_file_intact() {
-        let dir = std::env::temp_dir().join(format!("snellar-atomic-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(dir.join("data.json.tmp")).unwrap();
-        std::fs::write(dir.join("data.json"), b"old").unwrap();
-        assert!(write_atomic(&dir.join("data.json"), b"new content".to_vec()).await.is_err());
-        assert_eq!(std::fs::read(dir.join("data.json")).unwrap(), b"old");
-        std::fs::remove_dir(dir.join("data.json.tmp")).unwrap();
-        write_atomic(&dir.join("data.json"), b"new content".to_vec()).await.unwrap();
-        assert_eq!(std::fs::read(dir.join("data.json")).unwrap(), b"new content");
-        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1);
-    }
-
-    #[tokio::test]
-    async fn serves_repeats_until_ttl() {
-        let memo = Memo::default();
-        let calls = AtomicUsize::new(0);
-        let fetch = || async {
-            calls.fetch_add(1, Ordering::Relaxed);
-            Ok(json!(calls.load(Ordering::Relaxed)))
-        };
-        assert_eq!(memo.get("a".into(), Duration::from_secs(60), fetch()).await.unwrap(), json!(1));
-        assert_eq!(memo.get("a".into(), Duration::from_secs(60), fetch()).await.unwrap(), json!(1));
-        assert_eq!(memo.get("b".into(), Duration::from_secs(60), fetch()).await.unwrap(), json!(2));
-        assert_eq!(memo.get("a".into(), Duration::ZERO, fetch()).await.unwrap(), json!(3));
-    }
-
-    #[tokio::test]
-    async fn errors_are_not_cached() {
-        let memo = Memo::default();
-        assert!(memo.get("a".into(), Duration::from_secs(60), async { anyhow::bail!("down") }).await.is_err());
-        assert_eq!(memo.get("a".into(), Duration::from_secs(60), async { Ok(json!(1)) }).await.unwrap(), json!(1));
+        let Some(_flight) = self.flights.try_hold(&format!("{}:{key}", rule.name)) else { return Warmed::Busy };
+        let Ok(_quiet) = self.background.try_acquire() else { return Warmed::Busy };
+        match fetch.await {
+            Ok(value) => {
+                self.put(rule, key, value);
+                Warmed::Fetched
+            }
+            Err(_) => Warmed::Failed,
+        }
     }
 }

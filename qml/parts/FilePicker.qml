@@ -11,6 +11,8 @@ Item {
     property string start: ""
     property bool busy: false
     readonly property var dialog: folder ? folderDialog : fileDialog
+    readonly property string home: decodeURIComponent(String(StandardPaths.writableLocation(StandardPaths.HomeLocation)).replace(/^file:\/\//, ""))
+    readonly property string startPath: /^~(\/|$)/.test(start) ? home + start.slice(1) : start
     signal picked(string path)
 
     visible: false
@@ -18,7 +20,7 @@ Item {
     function open() {
         if (busy) return
         busy = true
-        Api.call("pickPath", { title: title, folder: folder, filters: nameFilters, start: start }, (v, e) => {
+        Api.call("pickPath", { title: title, folder: folder, filters: nameFilters, start: startPath }, (v, e) => {
             if (!picker) return
             busy = false
             if (e || !v || v.status === "unavailable") showOwnDialog()
@@ -27,7 +29,7 @@ Item {
     }
 
     function showOwnDialog() {
-        dialog.currentFolder = start ? "file://" + encodeURI(start) : StandardPaths.writableLocation(StandardPaths.HomeLocation)
+        dialog.currentFolder = startPath ? "file://" + encodeURI(startPath) : StandardPaths.writableLocation(StandardPaths.HomeLocation)
         dialog.open()
     }
 

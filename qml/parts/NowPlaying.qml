@@ -6,7 +6,8 @@ Item {
 
     property bool open: false
     readonly property real p: spring.value
-    readonly property bool covering: p > 0.98
+    readonly property bool covering: p >= Motion.settledAt
+    readonly property real hiding: Math.max(0, Math.min(1, (p - Motion.nowHandover) / (Motion.settledAt - Motion.nowHandover)))
     readonly property var track: Api.current
     readonly property Item controls: deck
     readonly property Item soundButton: sound
@@ -18,8 +19,8 @@ Item {
 
     SpringValue {
         id: spring
-        zeta: np.open ? Theme.springBase[0] : Theme.springCritical[0]
-        response: np.open ? Theme.springBase[1] : Theme.springCritical[1]
+        zeta: np.open ? Motion.sheetOpenDamping : Motion.sheetCloseDamping
+        response: np.open ? Motion.sheetOpenResponse : Motion.sheetCloseResponse
         target: np.open ? 1 : 0
     }
 
@@ -27,7 +28,7 @@ Item {
 
     Ambient {
         anchors.fill: parent
-        source: np.track ? Theme.art(np.track.thumb, 160) : ""
+        source: np.track ? Theme.art(np.track.thumb, Theme.ambientPx) : ""
     }
 
     Rectangle { anchors.fill: parent; color: Theme.scrim }
@@ -63,10 +64,18 @@ Item {
                 width: deck.side
                 height: deck.side
                 radius: Theme.rArtL
-                px: 800
+                px: Theme.coverNowPx
+                standIn: true
                 url: np.track ? np.track.thumb : ""
-                scale: Api.playing ? 1 : 0.9
-                Behavior on scale { NumberAnimation { duration: Theme.emphasized; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+                scale: rest.value
+
+                SpringValue {
+                    id: rest
+                    reducible: true
+                    zeta: Motion.sheetOpenDamping
+                    response: Motion.sheetOpenResponse
+                    target: Api.playing ? 1 : Motion.pausedCover
+                }
             }
 
             Column {
@@ -81,11 +90,7 @@ Item {
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
 
-                    TapHandler {
-                        enabled: Api.albumOf(np.track).length > 0
-                        onTapped: Nav.album(Api.albumOf(np.track))
-                    }
-                    HoverHandler { enabled: Api.albumOf(np.track).length > 0; cursorShape: Qt.PointingHandCursor }
+                    AlbumLink { track: np.track }
                 }
                 ArtistLinks {
                     width: parent.width
@@ -108,22 +113,10 @@ Item {
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: Theme.spaceSm
-                IconButton {
-                    icon: Api.liked ? "heartFill" : "heart"
-                    tip: Api.liked ? qsTr("Unlike") : qsTr("Like")
-                    active: Api.liked
-                    onClicked: Api.like(np.track)
-                }
+                LikeButton { }
                 QuickAdd { }
-                IconButton { id: sound; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
-                IconButton {
-                    id: more
-                    icon: "more"
-                    tip: qsTr("More")
-                    visible: !!np.track
-                    onClicked: menu.toggle(more, 0, more.height)
-                    MenuSpot { id: menu; entity: np.track }
-                }
+                SoundButton { id: sound }
+                MoreButton { size: Theme.controlMd; visible: !!np.track; entity: np.track }
                 VolumeControl { anchors.verticalCenter: parent.verticalCenter; barWidth: Theme.volumeWide }
             }
         }
@@ -135,7 +128,7 @@ Item {
                 right: parent.right
                 rightMargin: Theme.space2xl + Theme.spaceLg
                 top: parent.top
-                topMargin: Theme.frameless ? Theme.windowBarHeight : Theme.spaceXl + (Theme.controlLg - Theme.segmentHeight) / 2
+                topMargin: Theme.spaceXl + (Theme.controlLg - Theme.segmentHeight) / 2
                 bottom: parent.bottom
                 bottomMargin: Theme.space2xl
             }

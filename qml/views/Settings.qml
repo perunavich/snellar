@@ -6,9 +6,9 @@ import "../lists.js" as Lists
 Item {
     id: view
     property var params: ({})
-    property string language: ""
+    property string language: Api.setting("language") || ""
     property string query: ""
-    property string quality: Api.defaults.quality || "auto"
+    property string quality: Api.setting("quality") || "auto"
     property string section: "general"
     property bool componentsOpen: false
     readonly property bool split: width >= Theme.settingsSplitMin
@@ -49,42 +49,67 @@ Item {
         cover: qsTr("Cover", "window background"),
         solid: qsTr("Solid", "window background")
     })
+    readonly property var glassOptions: ["auto", "glass", "cover", "solid"].map(key => ({ key: key, label: glassNames[key] }))
+    readonly property var sideOptions: [{ key: "left", label: qsTr("Left") }, { key: "right", label: qsTr("Right") }]
 
     readonly property var labels: ({
         language: { title: qsTr("Language"), control: "language" },
         accent: { title: qsTr("Accent color"), control: "accent", below: true, words: Object.values(accentNames).join(" ") },
         glass: { title: qsTr("Window background"), detail: qsTr("Auto is %1 on this desktop").arg(glassNames[Theme.autoGlass]), control: "glass" },
-        navRight: { title: qsTr("Navigation side"), detail: qsTr("Mirrors the whole layout"), control: "side" },
+        backgroundDim: { title: qsTr("Dim the background"), control: "dim", hidden: !Theme.dimmable },
+        navRight: { title: qsTr("Sidebar"), detail: qsTr("Flips the whole layout"), control: "side" },
+        reduceMotion: { title: qsTr("Reduce motion"), detail: qsTr("The Home sky stays still and the sidebar folds instantly. Turns on by itself when your system asks for less motion") },
         autoplay: { title: qsTr("Autoplay"), detail: qsTr("Keep playing similar songs when the queue ends") },
+        recsLive: { title: qsTr("Live versions"), detail: qsTr("In recommendations. When off, the original plays instead if Snellar finds it") },
+        recsCovers: { title: qsTr("Covers"), detail: qsTr("In recommendations. When off, the original plays instead if Snellar finds it") },
+        recsRemixes: { title: qsTr("Remixes"), detail: qsTr("In recommendations. When off, the original plays instead if Snellar finds it") },
+        recsSpeed: { title: qsTr("Sped-up and slowed versions"), detail: qsTr("In recommendations. When off, the original plays instead if Snellar finds it") },
+        recsSpam: { title: qsTr("Hide AI and spam artists"), detail: qsTr("In recommendations: songs marked as made by AI, and artists with hundreds of releases and few fans. Artists you know are never hidden") },
         loudness: { title: qsTr("Even out loudness"), detail: qsTr("Loud songs are turned down to the level of the rest, never up") },
-        audioDevice: { title: qsTr("Output device"), detail: qsTr("If this device is unplugged, sound moves to Automatic until it is back"), control: "device" },
+        audioDevice: { title: qsTr("Output device"), detail: qsTr("If this device is unplugged, sound switches to Automatic until it's back"), control: "device" },
         closeToBackground: { title: qsTr("Keep playing when the window closes") },
         quality: { title: qsTr("Audio quality"), control: "quality" },
-        handoff: { title: qsTr("Continue from other players"), detail: qsTr("Offers to carry on what another player is playing. Its song names are sent to YouTube to find them here") },
-        discordRpc: { title: qsTr("Show in Discord"), detail: qsTr("Your Discord status names the song you are listening to"), words: "Rich Presence" },
+        handoff: { title: qsTr("Continue from other players"), detail: qsTr("Offers to pick up what another player is playing. Song titles are sent to YouTube to find them") },
+        discordRpc: { title: qsTr("Show in Discord"), detail: qsTr("Your Discord status shows the song you're listening to"), words: "Rich Presence" },
         downloadDir: { title: qsTr("Download folder"), detail: qsTr("Where downloaded songs are saved"), hint: "~/Music/Snellar", control: "folder" },
         lastfmKey: { title: qsTr("Last.fm API key"), detail: qsTr("Optional. Finds similar artists for your recommendations"), link: { text: qsTr("Get a free key on Last.fm"), url: "https://www.last.fm/api/account/create" } },
-        proxy: { title: qsTr("Proxy"), detail: qsTr("For YouTube and every other request Snellar makes. Empty uses the system proxy."), hint: "http://host:3128" },
+        proxy: { title: qsTr("Proxy"), detail: qsTr("For YouTube and all other connections. Leave empty to use the system proxy."), hint: "http://host:3128" },
         autoUpdate: { title: qsTr("Update automatically"), words: "version", control: "update" }
     })
 
+    property string discord: "off"
+    function checkDiscord() { Api.call("discord", {}, v => { if (view) view.discord = v || "off" }) }
+    Timer {
+        interval: Theme.offlineRetry
+        repeat: true
+        triggeredOnStart: true
+        running: view.visible && (view.section === "services" || view.query.length > 0)
+        onTriggered: view.checkDiscord()
+    }
+    Connections {
+        target: Api
+        function onSettingSaved(key) { if (key === "discordRpc") view.checkDiscord() }
+    }
+
     readonly property var liveDetails: ({
         accent: Theme.accentName === "cover" ? qsTr("Follows the cover of the song playing now") : qsTr("Colors buttons, the seek bar and the playing song"),
-        closeToBackground: trayAddable ? qsTr("GNOME has no tray, so closing the window quits. Dependencies can add one.") : Api.trayReady || !closeToBackgroundOn ? qsTr("Snellar stays in the tray; quit from its menu") : qsTr("No tray on this desktop, so closing the window still quits"),
-        quality: qsTr("%1. Applies from the next song").arg(qualityDetails[quality] || "")
+        backgroundDim: Theme.glassLevel === "cover" ? qsTr("How much of the cover shows behind the window. Double-click to reset") : qsTr("How dark the window is. Double-click to reset"),
+        closeToBackground: trayAddable ? qsTr("GNOME has no tray, so closing the window quits Snellar. You can add one in Dependencies.") : Api.trayReady || !closeToBackgroundOn ? qsTr("Snellar stays in the tray; quit from its menu") : qsTr("No tray on this desktop, so closing the window quits Snellar"),
+        quality: qsTr("%1. Applies from the next song").arg(qualityDetails[quality] || ""),
+        discordRpc: discord === "waiting" ? qsTr("Discord isn't running. The song will show up once it opens.") : labels.discordRpc.detail
     })
 
     readonly property var blurSentence: {
         const info = Api.desktopInfo
         switch (info.desktop) {
-        case "gnome": return info.blur ? qsTr("Glass works through Blur my Shell. Auto uses Glass.") : qsTr("GNOME does not blur windows by itself, so Auto uses Cover.")
+        case "gnome": return info.blur ? qsTr("Glass works through Blur my Shell. Auto uses Glass.") : qsTr("GNOME doesn't blur windows by itself, so Auto uses Cover.")
         case "hyprland": return info.blur ? qsTr("Hyprland blurs this window. Auto uses Glass.") : qsTr("Blur is off in Hyprland, so Auto uses Cover.")
         case "swayfx": return info.blur ? qsTr("SwayFX blurs this window. Auto uses Glass.") : qsTr("Blur is off in SwayFX, so Auto uses Cover.")
-        case "niri": return info.blur ? qsTr("Your niri config turns blur on. Auto stays on Cover: choose Glass in Appearance to use it.") : qsTr("niri does not blur this window yet, so Auto uses Cover.")
-        case "kde": return qsTr("KDE Plasma blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.")
-        case "cosmic": return qsTr("COSMIC blurs a window only when the app asks, and Snellar does not ask yet. Auto uses Cover.")
-        case "sway": return qsTr("Sway cannot blur windows. SwayFX can. Auto uses Cover.")
-        default: return qsTr("Snellar cannot tell whether this desktop blurs windows. Auto uses Cover.")
+        case "niri": return info.blur ? qsTr("Your niri config turns blur on. Auto stays on Cover: choose Glass in Appearance to use it.") : qsTr("niri doesn't blur this window yet, so Auto uses Cover.")
+        case "kde": return qsTr("KDE Plasma blurs a window only when the app asks, and Snellar doesn't ask yet. Auto uses Cover.")
+        case "cosmic": return qsTr("COSMIC blurs a window only when the app asks, and Snellar doesn't ask yet. Auto uses Cover.")
+        case "sway": return qsTr("Sway can't blur windows, SwayFX can. Auto uses Cover.")
+        default: return qsTr("Snellar can't tell whether this desktop blurs windows. Auto uses Cover.")
         }
     }
 
@@ -104,20 +129,20 @@ Item {
             control: "glassOffer",
             below: true,
             title: qsTr("Glass through Blur my Shell"),
-            detail: qsTr("Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension. The extension also blurs the top bar and the overview. These of its settings change: blur for apps on, Snellar added to its list, opacity 255, dynamic opacity off, a Snellar pipeline for apps, corner radius 12 on all corners. Every app on its list gets that look. Undo puts them back and removes what Snellar installed.")
+            detail: qsTr("Makes the window see-through. GNOME opens its own dialog to install the Blur my Shell extension, which also blurs the top bar and the overview. Snellar changes these extension settings: app blur on, Snellar on its list, opacity 255, dynamic opacity off, a Snellar pipeline for apps, radius 12 on all corners. Every app on its list gets this look. Undo puts them back and removes what Snellar installed.")
         })
         if (info.desktop === "gnome" && info.blur && info.gnome && !info.gnome.look) rows.push({
             block: better,
             control: "glassLook",
             below: true,
             title: qsTr("Lighter glass"),
-            detail: qsTr("Blur my Shell darkens the window by default. This gives its apps a Snellar pipeline with a softer blur and no darkening, and corner radius 12 on all corners. Every app on its list gets that look. Undo puts it back.")
+            detail: qsTr("Blur my Shell darkens the window by default. This gives its apps a Snellar pipeline with softer blur, no darkening and radius 12 on all corners. Every app on its list gets this look. Undo puts it back.")
         })
         if (trayAddable) rows.push({
             block: better,
             control: "addTray",
             title: qsTr("Tray"),
-            detail: qsTr("GNOME has no tray, so closing the window quits. GNOME opens its own dialog to install AppIndicator support.")
+            detail: qsTr("GNOME has no tray, so closing the window quits Snellar. GNOME opens its own dialog to install AppIndicator support.")
         })
         if (info.line) rows.push({
             block: better,
@@ -132,7 +157,7 @@ Item {
             control: "components",
             below: true,
             title: qsTr("Components"),
-            detail: qsTr("What Snellar runs on here, for bug reports."),
+            detail: qsTr("What Snellar runs on. Useful for bug reports."),
             words: "mpv yt-dlp ffmpeg qt portal"
         })
         return rows
@@ -144,15 +169,15 @@ Item {
         const version = u.version
         const checked = u.checked ? qsTr("Last checked %1").arg(Theme.since(u.checked).toLowerCase()) : qsTr("Not checked yet")
         switch (u.phase) {
-        case "development": return qsTr("Version %1. A development build does not update itself").arg(version)
-        case "elsewhere": return qsTr("Version %1 runs from %2. Only a copy set up by the install script updates itself").arg(version).arg(u.place)
-        case "unsigned": return qsTr("Version %1. This build has no update key, so it does not update itself").arg(version)
-        case "off": return qsTr("Version %1. Off: new versions are not checked for").arg(version)
-        case "checking": return qsTr("Version %1. Checking for a new one").arg(version)
-        case "downloading": return qsTr("Version %1. Getting %2 in the background: %3%").arg(version).arg(u.latest).arg(u.percent)
+        case "development": return qsTr("Version %1. Development builds don't update themselves").arg(version)
+        case "elsewhere": return qsTr("Version %1, running from %2. Only a copy installed by the install script updates itself").arg(version).arg(u.place)
+        case "unsigned": return qsTr("Version %1. This build has no update key, so it doesn't update itself").arg(version)
+        case "off": return qsTr("Version %1. Not checking for updates").arg(version)
+        case "checking": return qsTr("Version %1. Checking for updates…").arg(version)
+        case "downloading": return qsTr("Version %1. Downloading %2: %3%").arg(version).arg(u.latest).arg(u.percent)
         case "current": return qsTr("Version %1 is up to date. %2").arg(version).arg(checked)
-        case "ready": return qsTr("Version %1 is ready and starts the next time you open Snellar").arg(u.latest)
-        case "failed": return qsTr("Version %1. Could not update: %2 It tries again later").arg(version).arg(sentence(Errors.text(u.code)))
+        case "ready": return qsTr("Version %1 is ready. It starts next time you open Snellar").arg(u.latest)
+        case "failed": return qsTr("Version %1. Couldn't update: %2 Snellar will try again later").arg(version).arg(sentence(Errors.text(u.code)))
         default: return qsTr("Version %1. %2").arg(version).arg(checked)
         }
     }
@@ -172,8 +197,7 @@ Item {
     }
 
     readonly property var extras: [
-        { section: "audio", control: "equalizer", title: qsTr("Equalizer and effects"), detail: qsTr("Also opens from the sliders button by the player"), words: "eq bass reverb speed", first: true },
-        { section: "library", control: "clearHistory", title: qsTr("Clear history"), detail: qsTr("Forget everything you have played") },
+        { section: "library", control: "clearHistory", title: qsTr("Clear history"), detail: qsTr("Forget everything you've played") },
         { section: "about", control: "version", title: "Snellar", detail: qsTr("Music player"), first: true },
         { section: "about", control: "keys", title: qsTr("Keyboard shortcuts"), detail: qsTr("Also opens with Ctrl+/") }
     ]
@@ -181,7 +205,7 @@ Item {
     function rowsOf(section) {
         if (section.id === "dependencies") return dependencyRows
         const fromRegistry = Api.registry.filter(s => s.section === section.id).map(s => Object.assign(
-            { key: s.key, control: s.kind === "bool" ? "switch" : "field", title: s.key, detail: "" }, labels[s.key]))
+            { key: s.key, control: s.kind === "bool" ? "switch" : "field", title: s.key, detail: "" }, labels[s.key])).filter(row => !row.hidden)
         const added = extras.filter(e => e.section === section.id)
         return added.filter(e => e.first).concat(fromRegistry, added.filter(e => !e.first))
     }
@@ -234,11 +258,17 @@ Item {
         Api.call("setSetting", { key: key, value: value })
     }
 
+    function setDim(value) {
+        if (value === Theme.backgroundDim) return
+        Theme.backgroundDim = value
+        Api.call("setSetting", { key: "backgroundDim", value: value })
+    }
+
     Component.onCompleted: {
         nav.forceActiveFocus()
         if (Nav.settingsSection) section = Nav.settingsSection
-        Api.call("getSetting", { key: "language" }, v => view.language = v || "")
-        Api.call("getSetting", { key: "quality" }, v => { if (v) view.quality = v })
+        Api.call("getSetting", { key: "language" }, v => { if (view) view.language = v || "" })
+        Api.call("getSetting", { key: "quality" }, v => { if (view && v) view.quality = v })
         Nav.finder = find
     }
     Component.onDestruction: if (Nav.finder === find) Nav.finder = null
@@ -246,21 +276,14 @@ Item {
     Item {
         id: head
         x: Theme.space2xl
-        y: Theme.space2xl
+        y: Theme.navBar
         width: Math.min(view.width - 2 * Theme.space2xl, (view.split ? Theme.settingsNavWidth + Theme.spaceXl : 0) + Theme.settingsWidth)
         height: Theme.controlLg
 
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: qsTr("Settings")
-            color: Theme.text
-            font.family: Theme.font
-            font.pixelSize: Theme.fsLargeTitle
-            font.weight: Font.DemiBold
-        }
+        PageTitle { id: title; text: qsTr("Settings") }
         FindField {
             id: find
-            anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; verticalCenter: title.verticalCenter }
             hint: qsTr("Find a setting")
             query: view.query
             onEdited: text => view.query = text
@@ -284,6 +307,7 @@ Item {
             model: view.sections
             delegate: SidebarRow {
                 required property var modelData
+                activeFocusOnTab: false
                 width: view.split ? nav.width : implicitWidth
                 icon: modelData.icon
                 text: modelData.title
@@ -303,6 +327,7 @@ Item {
         width: view.width - x
         height: view.height - y
         padding: 0
+        headroom: 0
 
         EmptyState {
             visible: view.groups.length === 0
@@ -325,7 +350,7 @@ Item {
                 Rectangle {
                     width: parent.width
                     height: card.height + 2 * Theme.spaceSm
-                    radius: Theme.rLg
+                    radius: Theme.rCard
                     color: Theme.fillRaised
 
                     Column {
@@ -350,9 +375,9 @@ Item {
 
                                 Loader {
                                     sourceComponent: ({
-                                        language: languageControl, accent: accentControl, glass: glassControl, side: sideControl,
+                                        language: languageControl, accent: accentControl, glass: glassControl, dim: dimControl, side: sideControl,
                                         "switch": switchControl, field: fieldControl, folder: folderControl, quality: qualityControl, device: deviceControl,
-                                        clearHistory: clearControl, equalizer: equalizerControl, version: versionControl, update: updateControl, keys: keysControl,
+                                        clearHistory: clearControl, version: versionControl, update: updateControl, keys: keysControl,
                                         glassOffer: glassOfferControl, glassLook: glassLookControl, addTray: addTrayControl, copyLine: copyLineControl, undoGlass: undoGlassControl, components: componentsControl
                                     })[row.modelData.control] || null
                                 }
@@ -376,17 +401,30 @@ Item {
                                 Component {
                                     id: glassControl
                                     IosSegment {
+                                        width: fit
                                         current: Theme.glass
-                                        options: ["auto", "glass", "cover", "solid"].map(key => ({ key: key, label: view.glassNames[key] }))
+                                        options: view.glassOptions
+                                        peers: view.sideOptions
                                         onPicked: key => view.setAppearance("glass", key)
+                                    }
+                                }
+                                Component {
+                                    id: dimControl
+                                    FxSlider {
+                                        width: Theme.segmentNarrow
+                                        value: Theme.backgroundDim
+                                        neutral: Api.defaults.backgroundDim
+                                        step: Theme.dimStep
+                                        onMoved: v => view.setDim(v)
                                     }
                                 }
                                 Component {
                                     id: sideControl
                                     IosSegment {
-                                        width: Math.max(Theme.segmentNarrow, fit)
+                                        width: fit
                                         current: Theme.navRight ? "right" : "left"
-                                        options: [{ key: "left", label: qsTr("Left") }, { key: "right", label: qsTr("Right") }]
+                                        options: view.sideOptions
+                                        peers: view.glassOptions
                                         onPicked: key => view.setAppearance("navRight", key === "right")
                                     }
                                 }
@@ -402,7 +440,6 @@ Item {
                                             visible: view.updateManaged
                                             height: Theme.controlSm
                                             enabled: !view.updateBusy
-                                            opacity: enabled ? 1 : Theme.disabledOpacity
                                             primary: view.updatePhase === "ready"
                                             text: view.updatePhase === "ready" ? qsTr("Restart") : qsTr("Check now")
                                             onClicked: {
@@ -418,7 +455,6 @@ Item {
                                     PillButton {
                                         primary: true
                                         enabled: !Api.glassBusy
-                                        opacity: enabled ? 1 : Theme.disabledOpacity
                                         text: Api.glassBusy ? qsTr("Waiting for GNOME") : qsTr("Set up glass")
                                         onClicked: Api.setupGlass()
                                     }
@@ -428,7 +464,6 @@ Item {
                                     PillButton {
                                         primary: true
                                         enabled: !Api.glassBusy
-                                        opacity: enabled ? 1 : Theme.disabledOpacity
                                         text: qsTr("Update glass")
                                         onClicked: Api.setupGlass()
                                     }
@@ -444,7 +479,6 @@ Item {
                                     id: undoGlassControl
                                     PillButton {
                                         enabled: !Api.glassBusy
-                                        opacity: enabled ? 1 : Theme.disabledOpacity
                                         text: qsTr("Undo")
                                         onClicked: Api.undoGlass()
                                     }
@@ -499,7 +533,7 @@ Item {
                                             id: folderPicker
                                             folder: true
                                             title: qsTr("Choose a download folder")
-                                            start: folderField.text.startsWith("/") ? folderField.text.trim() : ""
+                                            start: /^(\/|~\/|~$)/.test(folderField.text.trim()) ? folderField.text.trim() : ""
                                             onPicked: path => folderField.assign(path)
                                         }
                                     }
@@ -532,19 +566,12 @@ Item {
                                     }
                                 }
                                 Component {
-                                    id: equalizerControl
-                                    PillButton {
-                                        text: qsTr("Open")
-                                        icon: "sliders"
-                                        onClicked: Nav.audio = true
-                                    }
-                                }
-                                Component {
                                     id: clearControl
                                     PillButton {
+                                        id: clearButton
                                         text: qsTr("Clear")
                                         icon: "trash"
-                                        onClicked: clearHistory.open()
+                                        onClicked: clearHistory.openFrom(clearButton)
                                     }
                                 }
                             }
@@ -560,7 +587,7 @@ Item {
     Confirm {
         id: clearHistory
         title: qsTr("Clear your listening history?")
-        text: qsTr("Recommendations start over from your likes. This cannot be undone.")
+        text: qsTr("Recommendations will start over from your favorites. You can't undo this.")
         action: qsTr("Clear history")
         onAccepted: Api.call("clearHistory", {}, () => { Api.libraryChanged(); Api.toast(qsTr("History cleared")) })
     }

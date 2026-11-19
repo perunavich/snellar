@@ -64,7 +64,7 @@ Rectangle {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: qsTr("Nothing you do in this session will be kept, and your library is not shown.")
+                text: qsTr("Nothing you do now will be saved, and your library won't be shown.")
                 color: Theme.text3
                 font.pixelSize: Theme.fsCaption
             }

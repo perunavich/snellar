@@ -1,5 +1,5 @@
 import QtQuick
-
+import Snellar
 
 QtObject {
     id: v
@@ -7,24 +7,35 @@ QtObject {
     property real response: 0.4
     property real target: 0
     property real epsilon: 0.0005
-    readonly property real value: s.x
+    property real value: 0
+    property real speed: 0
+    property bool reducible: false
     readonly property bool moving: loop.running
-    property Spring s: Spring {}
 
-    onZetaChanged: s.set(zeta, response)
-    onResponseChanged: s.set(zeta, response)
-    onTargetChanged: loop.running = true
-    Component.onCompleted: { s.set(zeta, response); s.snap(target); }
+    onTargetChanged: {
+        if (reducible && Motion.reduced) snap(target)
+        else loop.running = true
+    }
+    Component.onCompleted: snap(target)
 
-    function snap(x) { s.snap(x); loop.running = false; }
+    function snap(x) {
+        value = x
+        speed = 0
+        loop.running = false
+    }
+
+    function kick(by) {
+        speed += by
+        loop.running = true
+    }
 
     property FrameAnimation loop: FrameAnimation {
-        id: loop
         running: false
         onTriggered: {
-            const dt = Math.min(frameTime, 0.05);
-            v.s.step(v.target, dt);
-            if (v.s.done(v.target, v.epsilon)) { v.s.snap(v.target); running = false; }
+            const next = Motion.solve(v.value - v.target, v.speed, v.response, v.zeta, Math.min(frameTime, Motion.maxStep) / Motion.timeScale)
+            if (Math.abs(next[0]) < v.epsilon && Math.abs(next[1]) < v.epsilon * 15) return v.snap(v.target)
+            v.value = v.target + next[0]
+            v.speed = next[1]
         }
     }
 }

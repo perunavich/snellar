@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -16,6 +17,7 @@ pub enum Filter {
     Albums,
     Artists,
     Videos,
+    Playlists,
 }
 
 impl Filter {
@@ -25,6 +27,7 @@ impl Filter {
             "albums" => Filter::Albums,
             "artists" => Filter::Artists,
             "videos" => Filter::Videos,
+            "playlists" => Filter::Playlists,
             _ => Filter::All,
         }
     }
@@ -65,6 +68,10 @@ pub trait Source: Send + Sync {
     }
 
     fn prefetch(&self, _id: &TrackId) {}
+
+    fn lengths<'a>(&'a self, _ids: &'a [TrackId]) -> BoxFuture<'a, Result<HashMap<TrackId, f64>>> {
+        Box::pin(async { Ok(HashMap::new()) })
+    }
 
     fn link(&self, _kind: Kind, _id: &str) -> Option<String> {
         None

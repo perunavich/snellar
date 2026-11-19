@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Snellar
 
-PillButton {
+PopPill {
     id: choice
 
     property var devices: []
@@ -26,7 +26,13 @@ PillButton {
     }
 
     text: wanted === "auto" ? qsTr("Automatic", "output device") : picked ? picked.description : qsTr("Not connected", "output device")
-    icon: "volume"
+    lead: "volume"
+    leadColor: Theme.text
+    pad: Theme.pillPadding
+    gap: Theme.spaceSm
+    height: Theme.controlLg
+    font.pixelSize: Theme.fsBody
+    font.weight: Font.DemiBold
     Component.onCompleted: load()
     onClicked: {
         load()

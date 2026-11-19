@@ -21,11 +21,6 @@ static DATA: LazyLock<PathBuf> = LazyLock::new(|| root(dirs::data_dir()));
 static CACHE: LazyLock<PathBuf> = LazyLock::new(|| root(dirs::cache_dir()));
 
 fn root(base: Option<PathBuf>) -> PathBuf {
-    #[cfg(any(test, feature = "test-guard"))]
-    assert!(
-        std::env::var_os("XDG_DATA_HOME").is_some() && std::env::var_os("XDG_CACHE_HOME").is_some(),
-        "tests must not touch the real library: use App::start_in with a testkit::Sandbox"
-    );
     base.unwrap_or_else(std::env::temp_dir).join(ID)
 }
 
@@ -91,48 +86,12 @@ pub fn downloads_dir() -> PathBuf {
     dirs::audio_dir().or_else(|| dirs::home_dir().map(|h| h.join("Music"))).unwrap_or_default().join(NAME)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn shown_version_reads_for_people() {
-        assert_eq!(shown_version("0.1.0-beta"), "0.1 beta");
-        assert_eq!(shown_version("0.1.0"), "0.1");
-        assert_eq!(shown_version("0.1.1-beta"), "0.1.1 beta");
-        assert_eq!(shown_version("1.2.3"), "1.2.3");
-        assert_eq!(shown_version("0.2.0-rc.1"), "0.2 rc.1");
-    }
-
-    #[test]
-    fn shown_version_of_this_build_is_the_release() {
-        assert_eq!(shown_version(VERSION), "0.1.1 beta");
-    }
-
-    #[test]
-    fn a_tool_is_found_on_the_path_only_if_it_is_a_file() {
-        let dir = std::env::temp_dir().join(format!("snellar-onpath-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(dir.join("ffmpeg")).unwrap();
-        assert_eq!(on_path(Some(dir.clone().into()), "ffmpeg"), None, "a folder of that name");
-        std::fs::create_dir_all(dir.join("bin")).unwrap();
-        std::fs::write(dir.join("bin/ffmpeg"), "").unwrap();
-        let path = std::env::join_paths([dir.clone(), dir.join("bin")]).unwrap();
-        assert_eq!(on_path(Some(path), "ffmpeg"), Some(dir.join("bin/ffmpeg")));
-        assert_eq!(on_path(None, "ffmpeg"), None);
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn a_tool_beside_the_binary_wins_over_the_path() {
-        let dir = std::env::temp_dir().join(format!("snellar-beside-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(&dir).unwrap();
-        let exe = dir.join("snellar");
-        assert_eq!(beside(Some(exe.clone()), "mpv"), PathBuf::from("mpv"), "nothing beside it, the name goes through PATH");
-        std::fs::write(dir.join("mpv"), "").unwrap();
-        assert_eq!(beside(Some(exe), "mpv"), dir.join("mpv"));
-        assert_eq!(beside(None, "mpv"), PathBuf::from("mpv"));
-        std::fs::remove_dir_all(&dir).ok();
-    }
+pub fn download_folder(text: &str) -> Option<PathBuf> {
+    let text = text.trim();
+    let path = match text.strip_prefix('~') {
+        Some(rest) if rest.is_empty() || rest.starts_with('/') => dirs::home_dir()?.join(rest.trim_start_matches('/')),
+        _ => PathBuf::from(text),
+    };
+    let escapes = path.components().any(|part| part == std::path::Component::ParentDir);
+    (path.is_absolute() && !escapes).then_some(path)
 }

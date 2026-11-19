@@ -18,7 +18,13 @@ Item {
 
     clip: true
 
-    Fetch { id: res; method: "lyrics"; args: ({ track: Api.current }); ready: !!Api.current && view.visible }
+    readonly property bool onScreen: !!Window.window && Window.window.visible && Window.window.visibility !== Window.Minimized
+    readonly property bool reading: visible && onScreen
+    onReadingChanged: Api.showingLyrics(view, reading, !onScreen)
+    Component.onCompleted: if (reading) Api.showingLyrics(view, true, false)
+    Component.onDestruction: Api.showingLyrics(view, false, false)
+
+    Fetch { id: res; method: "lyrics"; args: ({ track: Api.current }); ready: !!Api.current && view.reading }
 
     SpringValue {
         id: scroll
@@ -75,15 +81,21 @@ Item {
                 font.pixelSize: view.lineSize
                 font.weight: Font.Bold
                 opacity: !view.synced ? 0.85 : (dist === 0 ? 1 : Math.max(Theme.lyricDim, 0.9 - dist * 0.1))
-                scale: !view.synced || dist === 0 ? 1 : 0.9
+                scale: size.value
                 transformOrigin: Item.Left
-                Behavior on opacity { NumberAnimation { duration: Theme.m3; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard } }
-                Behavior on scale { NumberAnimation { duration: Theme.m3; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+                Behavior on opacity { Ease { duration: Theme.m3 } }
+
+                SpringValue {
+                    id: size
+                    reducible: true
+                    zeta: Motion.controlDamping
+                    response: Motion.controlResponse
+                    target: !view.synced || line.dist === 0 ? 1 : Motion.lyricAside
+                }
 
                 MouseArea {
                     anchors.fill: parent
                     enabled: view.synced
-                    cursorShape: Qt.PointingHandCursor
                     onClicked: Api.seek(line.modelData.time)
                 }
             }

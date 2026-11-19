@@ -13,9 +13,18 @@ ListView {
     ErrorState {
         parent: list
         x: Theme.spaceLg
-        y: Theme.spaceXl
+        y: 0
         width: list.width - 2 * Theme.spaceLg
         fetch: res
+    }
+    EmptyState {
+        parent: list
+        x: Theme.spaceLg
+        y: 0
+        width: list.width - 2 * Theme.spaceLg
+        visible: !!Api.current && !res.code && !res.loading && list.count === 0 && (!list.artistId || !!res.data)
+        icon: "user"
+        text: qsTr("No similar artists for this song")
     }
     clip: true
     spacing: Theme.spaceXs
@@ -40,15 +49,15 @@ ListView {
             width: Theme.rowCover
             height: Theme.rowCover
             radius: width / 2
-            px: 96
+            px: Theme.coverRowPx
             url: row.modelData.thumb
         }
         Column {
             anchors { left: art.right; leftMargin: Theme.spaceMd; right: parent.right; rightMargin: Theme.spaceSm; verticalCenter: parent.verticalCenter }
             Text { width: parent.width; text: row.modelData.name; color: Theme.text; font.pixelSize: Theme.fsBody; elide: Text.ElideRight }
-            Text { width: parent.width; text: Words.subscribers(row.modelData.subtitle); color: Theme.text2; font.pixelSize: Theme.fsCaption; elide: Text.ElideRight }
+            Text { width: parent.width; text: Words.audience(row.modelData.subtitle); color: Theme.text2; font.pixelSize: Theme.fsCaption; elide: Text.ElideRight }
         }
-        HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
+        HoverHandler { id: hover }
         Tap { onTapped: Nav.artist(row.modelData.id) }
     }
 }

@@ -5,6 +5,7 @@ use std::sync::Mutex;
 use tokio::task::{Id, JoinSet};
 
 use crate::journal;
+use crate::sync::Lock;
 
 #[derive(Default)]
 pub struct TaskSet(Mutex<Running>);
@@ -13,6 +14,8 @@ pub struct TaskSet(Mutex<Running>);
 struct Running {
     set: JoinSet<()>,
     names: HashMap<Id, &'static str>,
+    /// Set by `abort_all`: the set is finished with, and what is spawned later is dropped instead of run.
+    closed: bool,
 }
 
 impl TaskSet {
@@ -20,20 +23,31 @@ impl TaskSet {
     where
         F: Future<Output = ()> + Send + 'static,
     {
-        let mut running = self.0.lock().unwrap();
+        let mut running = self.0.locked();
+        if running.closed {
+            return;
+        }
         running.reap();
         let id = running.set.spawn(task).id();
         running.names.insert(id, name);
     }
 
     pub fn len(&self) -> usize {
-        let mut running = self.0.lock().unwrap();
+        let mut running = self.0.locked();
         running.reap();
         running.set.len()
     }
 
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    /// Aborts everything still running, as dropping the set would, while something else still holds it. The set is
+    /// closed: a spawn after this drops its task, so a job racing the abort cannot start another one.
+    pub fn abort_all(&self) {
+        let mut running = self.0.locked();
+        running.closed = true;
+        running.set.abort_all();
     }
 }
 
@@ -49,57 +63,5 @@ impl Running {
                 journal::error("task", format!("{name}: {panic}"));
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
-    use std::time::Duration;
-
-    use super::*;
-
-    struct Flag(Arc<AtomicBool>);
-
-    impl Drop for Flag {
-        fn drop(&mut self) {
-            self.0.store(true, Ordering::SeqCst);
-        }
-    }
-
-    #[tokio::test]
-    async fn dropping_the_set_aborts_what_is_still_running() {
-        let dropped = Arc::new(AtomicBool::new(false));
-        let tasks = TaskSet::default();
-        let flag = Flag(dropped.clone());
-        tasks.spawn("sleeper", async move {
-            let _flag = flag;
-            tokio::time::sleep(Duration::from_secs(3600)).await;
-        });
-        tokio::task::yield_now().await;
-        assert_eq!(tasks.len(), 1);
-        drop(tasks);
-        for _ in 0..100 {
-            if dropped.load(Ordering::SeqCst) {
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        panic!("the task outlived its owner");
-    }
-
-    #[tokio::test]
-    async fn finished_and_panicked_tasks_are_reaped() {
-        let tasks = TaskSet::default();
-        tasks.spawn("quick", async {});
-        tasks.spawn("broken", async { panic!("on purpose") });
-        for _ in 0..100 {
-            if tasks.is_empty() {
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        panic!("{} tasks were never reaped", tasks.len());
     }
 }

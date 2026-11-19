@@ -10,15 +10,38 @@ Item {
     readonly property string from: list ? "playlist:" + list.id : ""
     readonly property var origin: Api.origin("playlist", list)
     property bool renaming: false
+    property Item barHead: null
+    readonly property string barTitle: list ? list.name : ""
 
-    function renameAsked() {
-        if (!list || Nav.renaming !== list.id) return
-        Nav.renaming = null
-        renaming = true
+    function asked() {
+        if (!list) return
+        if (Nav.renaming === list.id) {
+            Nav.renaming = null
+            renaming = true
+        }
+        if (Nav.editing === list.id) {
+            Nav.editing = null
+            editor.edit(list)
+        }
     }
-    onListChanged: Qt.callLater(renameAsked)
+    onListChanged: Qt.callLater(asked)
     onRenamingChanged: if (renaming) page.contentY = page.originY
-    Connections { target: Nav; function onRenamingChanged() { view.renameAsked() } }
+    Connections {
+        target: Nav
+        function onRenamingChanged() { view.asked() }
+        function onEditingChanged() { view.asked() }
+    }
+
+    function keep(tracks) {
+        res.data = Object.assign({}, list, { tracks: tracks, count: tracks.length, thumb: list.cover || (tracks.length ? tracks[0].thumb : "") })
+    }
+
+    Connections {
+        target: Api
+        function onPlaylistTracksRemoved(id, trackIds) {
+            if (view.list && view.list.id === id) view.keep(view.list.tracks.filter(t => trackIds.indexOf(t.id) < 0))
+        }
+    }
 
     Fetch { id: res; method: "playlist"; args: ({ id: view.params.id }); ready: view.params.id !== undefined; live: true }
 
@@ -32,7 +55,7 @@ Item {
     function move(track, to) {
         const tracks = list.tracks.filter(t => t.id !== track.id)
         tracks.splice(to, 0, list.tracks.find(t => t.id === track.id))
-        res.data = Object.assign({}, list, { tracks: tracks })
+        keep(tracks)
         Api.call("movePlaylistItem", { id: list.id, trackId: track.id, to: to }, () => Api.libraryChanged())
     }
 
@@ -50,7 +73,6 @@ Item {
     TrackPage {
         id: page
         anchors.fill: parent
-        removable: true
         dated: true
         playlistId: view.list ? view.list.id : null
         from: view.from
@@ -58,20 +80,21 @@ Item {
         tracks: sorter.shown
         reorderable: sorter.custom
         onMoveRequested: (t, to) => view.move(t, to)
-        onRemoveRequested: t => Api.call("removeFromPlaylist", { id: view.list.id, trackId: t.id }, () => res.reload())
         intro: Column {
             spacing: Theme.sectionGap
 
             Hero {
+                id: hero
                 width: parent.width
                 visible: !!view.list
                 url: view.list ? view.list.thumb : ""
                 kind: qsTr("Playlist")
                 title: view.list ? view.list.name : ""
-                subtitle: view.list ? qsTr("%n song(s)", "", view.list.count) : ""
+                subtitle: view.list ? Words.songs(view.list.tracks) : ""
                 description: view.list ? view.list.description : ""
                 editingTitle: view.renaming
                 onTitleDoubleTapped: view.renaming = true
+                Component.onCompleted: view.barHead = hero
                 titleEditor: TextField {
                     anchors.fill: parent
                     padding: 0
@@ -94,18 +117,22 @@ Item {
                     Keys.onEscapePressed: view.renaming = false
                 }
 
+                tools: ListTools { sorter: sorter; visible: !!view.list && view.list.count > 0 }
+
                 PlayButtons { tracks: sorter.shown; from: view.from; origin: view.origin }
-                PillButton { text: qsTr("Edit details"); onClicked: editor.edit(view.list) }
+                ActionButton { id: editButton; text: qsTr("Edit details"); icon: "edit"; onClicked: editor.edit(view.list, editButton) }
+                DownloadButton { kind: "playlist"; entity: view.list }
+                MoreButton { page: true; kind: "playlist"; entity: view.list }
             }
 
-            ListTools { sorter: sorter; visible: !!view.list && view.list.count > 0 }
-
+            ListSkeleton { width: parent.width; hero: true; visible: res.loading && !view.list }
             ErrorState { width: parent.width; fetch: res }
             EmptyState {
                 visible: !!view.list && view.list.count === 0 && !res.code
                 width: parent.width
                 icon: "playlist"
-                text: qsTr("No songs yet. Use “Add to playlist” in a song menu.")
+                text: qsTr("No songs yet")
+                detail: qsTr("Choose “Add to playlist” in a song's menu.")
             }
             NoMatch { sorter: sorter; width: parent.width }
         }

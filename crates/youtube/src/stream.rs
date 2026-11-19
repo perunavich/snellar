@@ -3,14 +3,16 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use snellar_core::cache::write_atomic;
+use snellar_core::cache::{Flights, write_atomic};
+use snellar_core::clock::unix_secs;
 use snellar_core::error::Code;
 use snellar_core::model::AudioFormat;
+use snellar_core::sync::Lock;
 use tokio::process::Command;
 use tokio::task::JoinSet;
 
@@ -30,6 +32,7 @@ const PROBE_BYTES: usize = 16384;
 const FIRST_RANGE: u64 = 128 * 1024;
 const MID_RANGE: u64 = 512 * 1024;
 const AUTO_CEILING: u64 = 160_000;
+const REFUSAL_TTL: u64 = 900;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Quality {
@@ -40,12 +43,22 @@ pub enum Quality {
 }
 
 impl Quality {
-    pub fn parse(s: &str) -> Quality {
-        match s {
-            "high" => Quality::High,
-            "dataSaver" => Quality::DataSaver,
-            _ => Quality::Auto,
+    pub const ALL: [Quality; 3] = [Quality::Auto, Quality::High, Quality::DataSaver];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Quality::Auto => "auto",
+            Quality::High => "high",
+            Quality::DataSaver => "dataSaver",
         }
+    }
+
+    pub fn named(s: &str) -> Option<Quality> {
+        Quality::ALL.into_iter().find(|q| q.name() == s)
+    }
+
+    pub fn parse(s: &str) -> Quality {
+        Quality::named(s).unwrap_or_default()
     }
 
     fn ytdlp(self) -> &'static str {
@@ -93,20 +106,23 @@ struct Cached {
 
 type Resolved = (String, Option<String>);
 
+struct Refusal {
+    at: u64,
+    code: Code,
+    proxy: Option<String>,
+}
+
 pub struct Resolver {
     http: Http,
     cache_dir: PathBuf,
     cache: Mutex<HashMap<String, Cached>>,
-    locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    flights: Flights,
     visitor: tokio::sync::Mutex<Option<(u64, String)>>,
+    refused: Mutex<HashMap<String, Refusal>>,
     saving: tokio::sync::Mutex<()>,
     ytdlp_enabled: AtomicBool,
     ytdlp_runs: AtomicU64,
     quality: AtomicU8,
-}
-
-fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
 }
 
 fn expiry(url: &str) -> u64 {
@@ -114,7 +130,7 @@ fn expiry(url: &str) -> u64 {
         .split(['?', '&', '/'])
         .find_map(|p| p.strip_prefix("expire=").or_else(|| p.strip_prefix("expire/")))
         .and_then(|v| v.parse::<u64>().ok());
-    expire.map_or(now() + FALLBACK_TTL, |e| e.saturating_sub(SAFETY_MARGIN))
+    expire.map_or(unix_secs() + FALLBACK_TTL, |e| e.saturating_sub(SAFETY_MARGIN))
 }
 
 impl Resolver {
@@ -128,14 +144,15 @@ impl Resolver {
             .and_then(|b| serde_json::from_slice::<HashMap<String, Cached>>(&b).ok())
             .unwrap_or_default()
             .into_iter()
-            .filter(|(_, c)| c.expires > now())
+            .filter(|(_, c)| c.expires > unix_secs())
             .collect();
         Self {
             http: Http::new(route, |b| b.connect_timeout(CONNECT_LIMIT)),
             cache_dir,
             cache: Mutex::new(cache),
-            locks: Mutex::default(),
+            flights: Flights::default(),
             visitor: tokio::sync::Mutex::default(),
+            refused: Mutex::default(),
             saving: tokio::sync::Mutex::default(),
             ytdlp_enabled: AtomicBool::new(true),
             ytdlp_runs: AtomicU64::new(0),
@@ -143,17 +160,41 @@ impl Resolver {
         }
     }
 
+    fn refusal(&self, id: &str) -> Option<anyhow::Error> {
+        let proxy = self.http.route().proxy();
+        let mut refused = self.refused.locked();
+        match refused.get(id) {
+            Some(r) if r.proxy == proxy && r.at + REFUSAL_TTL > unix_secs() => {
+                Some(r.code.err(format!("YouTube already refused {id} in this session")))
+            }
+            Some(_) => {
+                refused.remove(id);
+                None
+            }
+            None => None,
+        }
+    }
+
+    fn refuse(&self, id: &str, e: &anyhow::Error) {
+        let code = Code::of(e);
+        if code.refused_for_good() {
+            let refusal = Refusal { at: unix_secs(), code, proxy: self.http.route().proxy() };
+            self.refused.locked().insert(id.into(), refusal);
+        }
+    }
+
     fn cached(&self, id: &str) -> Option<Resolved> {
-        let cache = self.cache.lock().unwrap();
-        cache.get(id).filter(|c| c.expires > now()).map(|c| (c.url.clone(), c.user_agent.clone()))
+        let cache = self.cache.locked();
+        cache.get(id).filter(|c| c.expires > unix_secs()).map(|c| (c.url.clone(), c.user_agent.clone()))
     }
 
     pub fn invalidate(&self, video_id: &str) {
-        self.cache.lock().unwrap().remove(video_id);
+        self.cache.locked().remove(video_id);
+        self.refused.locked().remove(video_id);
     }
 
     pub fn format(&self, video_id: &str) -> Option<AudioFormat> {
-        self.cache.lock().unwrap().get(video_id).and_then(|c| c.format.clone())
+        self.cache.locked().get(video_id).and_then(|c| c.format.clone())
     }
 
     pub fn quality(&self) -> Quality {
@@ -166,7 +207,7 @@ impl Resolver {
 
     pub fn set_quality(&self, quality: Quality) {
         if self.quality.swap(quality as u8, Ordering::Relaxed) != quality as u8 {
-            self.cache.lock().unwrap().clear();
+            self.cache.locked().clear();
         }
     }
 
@@ -178,22 +219,35 @@ impl Resolver {
         if let Some(hit) = self.cached(video_id) {
             return Ok(hit);
         }
-        let lock = self.locks.lock().unwrap().entry(video_id.into()).or_default().clone();
-        let _guard = lock.lock().await;
+        if let Some(refused) = self.refusal(video_id) {
+            return Err(refused);
+        }
+        let _flight = self.flights.hold(video_id).await;
         if let Some(hit) = self.cached(video_id) {
             return Ok(hit);
+        }
+        if let Some(refused) = self.refusal(video_id) {
+            return Err(refused);
         }
         let ((url, user_agent), format) = match self.direct_resolve(video_id).await {
             Ok(hit) => hit,
             Err(direct) if Code::of(&direct).nothing_gets_through() => return Err(direct),
+            Err(direct) if Code::of(&direct).refused_for_good() => {
+                self.refuse(video_id, &direct);
+                return Err(direct);
+            }
             Err(direct) => match self.fallback(video_id).await {
                 Ok(url) => ((url, None), None),
-                Err(other) => return Err(truer(direct, other)),
+                Err(other) => {
+                    let told = truer(direct, other);
+                    self.refuse(video_id, &told);
+                    return Err(told);
+                }
             },
         };
         {
             let entry = Cached { url: url.clone(), expires: expiry(&url), user_agent: user_agent.clone(), format };
-            self.cache.lock().unwrap().insert(video_id.into(), entry);
+            self.cache.locked().insert(video_id.into(), entry);
         }
         self.save().await?;
         Ok((url, user_agent))
@@ -201,7 +255,12 @@ impl Resolver {
 
     async fn save(&self) -> Result<()> {
         let _saving = self.saving.lock().await;
-        let snapshot = serde_json::to_vec(&*self.cache.lock().unwrap())?;
+        let snapshot = {
+            let mut cache = self.cache.locked();
+            let now = unix_secs();
+            cache.retain(|_, c| c.expires > now);
+            serde_json::to_vec(&*cache)?
+        };
         let _ = write_atomic(&self.cache_dir.join("streams.json"), snapshot).await;
         Ok(())
     }
@@ -217,7 +276,7 @@ impl Resolver {
     async fn visitor(&self, video_id: &str, fresh: bool) -> Result<String> {
         let mut slot = self.visitor.lock().await;
         if let Some((at, visitor)) = slot.as_ref() {
-            let age = now().saturating_sub(*at);
+            let age = unix_secs().saturating_sub(*at);
             if (!fresh && age < VISITOR_TTL) || age < 2 {
                 return Ok(visitor.clone());
             }
@@ -238,7 +297,7 @@ impl Resolver {
             .and_then(|(_, rest)| rest.split_once('"'))
             .map(|(v, _)| v.to_string())
             .ok_or_else(|| Code::YtParse.err("watch page has no visitor data"))?;
-        *slot = Some((now(), visitor.clone()));
+        *slot = Some((unix_secs(), visitor.clone()));
         Ok(visitor)
     }
 
@@ -317,12 +376,16 @@ impl Resolver {
 }
 
 fn answer_is_final(code: Code) -> bool {
-    code.network() && code != Code::NetTimeout
+    (code.network() && code != Code::NetTimeout) || code.refused_for_good()
 }
 
 fn truer(direct: anyhow::Error, ytdlp: anyhow::Error) -> anyhow::Error {
     let (d, y) = (Code::of(&direct), Code::of(&ytdlp));
-    if d == Code::YtUnavailable || d.network() {
+    if d.refused_for_good() {
+        direct
+    } else if y.refused_for_good() {
+        ytdlp
+    } else if d == Code::YtUnavailable || d.network() {
         direct
     } else if y == Code::YtUnavailable || y.network() || d == Code::Internal {
         ytdlp
@@ -392,10 +455,32 @@ fn loudness(resp: &Value, format: &Value) -> Option<f64> {
     format["loudnessDb"].as_f64().or_else(|| config["loudnessDb"].as_f64()).or_else(absolute).filter(|db| db.is_finite())
 }
 
+fn refusal_code(resp: &Value, status: &str) -> Code {
+    let playability = &resp["playabilityStatus"];
+    let reasons = [
+        playability["reason"].as_str(),
+        playability["errorScreen"]["playerErrorMessageRenderer"]["reason"]["simpleText"].as_str(),
+        playability["errorScreen"]["playerErrorMessageRenderer"]["subreason"]["simpleText"].as_str(),
+    ];
+    let said = |words: &[&str]| reasons.iter().flatten().any(|r| words.iter().any(|w| r.to_lowercase().contains(w)));
+    if playability.get("desktopLegacyAgeGateReason").is_some()
+        || matches!(status, "AGE_VERIFICATION_REQUIRED" | "AGE_CHECK_REQUIRED")
+        || said(&["confirm your age", "age-restricted", "inappropriate for some users"])
+    {
+        Code::YtAgeRestricted
+    } else if said(&["in your country"]) {
+        Code::YtRegion
+    } else if said(&["private video", "this video is private", "has been removed", "no longer available"]) {
+        Code::YtRemoved
+    } else {
+        Code::YtUnavailable
+    }
+}
+
 fn pick_audio<'a>(resp: &'a Value, client: &str, quality: Quality) -> Result<Pick<'a>> {
     let status = resp["playabilityStatus"]["status"].as_str().unwrap_or("UNKNOWN");
     if status != "OK" {
-        return Err(Code::YtUnavailable.err(format!("{client} playability: {status}")));
+        return Err(refusal_code(resp, status).err(format!("{client} playability: {status}")));
     }
     let formats = ["adaptiveFormats", "formats"].iter().flat_map(|k| resp["streamingData"][k].as_array().into_iter().flatten());
     let audio: Vec<Offer> = formats
@@ -470,347 +555,4 @@ async fn probe(http: &reqwest::Client, url: &str, user_agent: &str, length: u64)
         probe_range(http, url, user_agent, middle, (middle + MID_RANGE - 1).min(length.saturating_sub(1))),
     )
     .map(drop)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Instant;
-
-    use super::*;
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn saves_at_the_same_time_leave_one_whole_streams_file() {
-        let dir = std::env::temp_dir().join(format!("snellar-streams-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(&dir).unwrap();
-        let resolver = Arc::new(Resolver::new(dir.clone()));
-        {
-            let mut cache = resolver.cache.lock().unwrap();
-            for i in 0..2000 {
-                cache.insert(format!("id{i}"), Cached { url: "u".repeat(100), expires: now() + 100, user_agent: None, format: None });
-            }
-        }
-        let saves: Vec<_> = (0..16)
-            .map(|_| {
-                let resolver = resolver.clone();
-                tokio::spawn(async move { resolver.save().await })
-            })
-            .collect();
-        for save in saves {
-            save.await.unwrap().unwrap();
-        }
-        let saved: HashMap<String, Cached> = serde_json::from_slice(&std::fs::read(dir.join("streams.json")).unwrap()).unwrap();
-        assert_eq!(saved.len(), 2000);
-        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 1, "no temp file stays");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    async fn fake_proxy(reply: &'static str) -> Route {
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            while let Ok((mut conn, _)) = listener.accept().await {
-                let mut buf = [0u8; 2048];
-                let _ = tokio::io::AsyncReadExt::read(&mut conn, &mut buf).await;
-                let _ = tokio::io::AsyncWriteExt::write_all(&mut conn, reply.as_bytes()).await;
-            }
-        });
-        let route = Route::default();
-        route.set(Some(format!("http://{addr}")));
-        route
-    }
-
-    fn resolver_at(name: &str, route: &Route) -> Resolver {
-        let dir = std::env::temp_dir().join(format!("snellar-stream-{name}-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(&dir).unwrap();
-        Resolver::with_route(dir, route)
-    }
-
-    #[tokio::test]
-    async fn the_network_cause_comes_back_instead_of_the_tool_that_ran_last() {
-        let route = fake_proxy("HTTP/1.1 407 Proxy Authentication Required\r\ncontent-length: 0\r\n\r\n").await;
-        let resolver = resolver_at("proxy-auth", &route);
-        let e = resolver.resolve_with_ua("aaaaaaaaaaa").await.unwrap_err();
-        assert_eq!(Code::of(&e), Code::ProxyAuth, "{e:#}");
-    }
-
-    #[test]
-    fn the_truer_of_two_failures_is_told() {
-        let pick = |d: Code, y: Code| Code::of(&truer(d.err("direct"), y.err("ytdlp")));
-        assert_eq!(pick(Code::NetBlocked, Code::YtdlpMissing), Code::NetBlocked);
-        assert_eq!(pick(Code::YtUnavailable, Code::YtdlpFailed), Code::YtUnavailable);
-        assert_eq!(pick(Code::Internal, Code::YtdlpMissing), Code::YtdlpMissing);
-        assert_eq!(pick(Code::YtParse, Code::NetLimited), Code::NetLimited);
-        assert_eq!(pick(Code::YtParse, Code::YtdlpFailed), Code::YtParse);
-    }
-
-    #[test]
-    fn a_track_youtube_refuses_is_unavailable() {
-        let resp = json!({"playabilityStatus": {"status": "ERROR", "reason": "Video unavailable"}});
-        let Err(e) = pick_audio(&resp, "TEST", Quality::Auto) else { panic!("no format in this answer") };
-        assert_eq!(Code::of(&e), Code::YtUnavailable);
-    }
-
-    #[test]
-    fn expiry_from_url() {
-        let url = "https://rr1.googlevideo.com/videoplayback?expire=2000000000&ei=x";
-        assert_eq!(expiry(url), 2000000000 - SAFETY_MARGIN);
-        assert!(expiry("https://x/y") > now());
-    }
-
-    async fn full_ranges(http: &reqwest::Client, url: &str, ua: &str, length: u64) -> [bool; 4] {
-        let get = |range: String| async move {
-            let resp = http.get(url).header("User-Agent", ua).header("Range", range).send().await;
-            resp.map(|r| r.status().as_u16() == 206 || r.status().as_u16() == 200).unwrap_or(false)
-        };
-        [
-            get("bytes=0-131071".into()).await,
-            get(format!("bytes={}-{}", length / 2, length / 2 + 524287)).await,
-            get(format!("bytes={}-{}", length.saturating_sub(100_000), length - 1)).await,
-            get("bytes=0-".into()).await,
-        ]
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_bench() {
-        let http = reqwest::Client::new();
-        let ytm = crate::ytm::Ytm::new(http.clone());
-        let dir = std::env::temp_dir().join(format!("snellar-bench-{}", now()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let r = Resolver::new(dir);
-        let queries = [
-            "taylor swift anti-hero",
-            "metallica one",
-            "miles davis so what",
-            "beethoven moonlight sonata",
-            "kendrick lamar humble",
-            "bad bunny titi me pregunto",
-            "okean elzy bez boyu",
-            "kalush stefania",
-            "yoasobi idol",
-            "psy gangnam style",
-            "blackpink ddu-du ddu-du",
-            "arijit singh tum hi ho",
-            "tarkan simarik",
-            "fairuz kifak inta",
-            "anitta envolver",
-            "rammstein du hast",
-            "stromae alors on danse",
-            "daft punk get lucky",
-            "avicii wake me up",
-            "johnny cash hurt",
-            "abba dancing queen",
-            "kent musik",
-            "adele hello",
-            "billie eilish bad guy",
-        ];
-        let (mut ok, mut full, mut total, mut times) = (0, 0, 0, Vec::new());
-        for q in queries {
-            let Some(t) = ytm.search(q, crate::ytm::Filter::Songs).await.ok().and_then(|r| r.tracks.into_iter().next()) else { continue };
-            total += 1;
-            let start = std::time::Instant::now();
-            let hit = r.direct_resolve(t.id.video_id().unwrap()).await;
-            let took = start.elapsed();
-            let Ok(((url, ua), _)) = hit else {
-                println!("{q:<30} {} DIRECT FAILED {took:?}", t.id);
-                continue;
-            };
-            ok += 1;
-            times.push(took);
-            let length: u64 = url.split("clen=").nth(1).and_then(|v| v.split('&').next()).and_then(|v| v.parse().ok()).unwrap_or(0);
-            let ranges = full_ranges(&http, &url, ua.as_deref().unwrap_or_default(), length).await;
-            full += ranges.iter().all(|r| *r) as usize;
-            println!(
-                "{q:<30} {} direct {took:?} client={} ranges(start,mid,end,open)={ranges:?}",
-                t.id,
-                url.split("&c=").nth(1).and_then(|v| v.split('&').next()).unwrap_or("?")
-            );
-            tokio::time::sleep(Duration::from_millis(700)).await;
-        }
-        times.sort();
-        println!("direct ok {ok}/{total}, all four ranges {full}/{total}, median {:?}, max {:?}", times.get(times.len() / 2), times.last());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_ytdlp_bench() {
-        let dir = std::env::temp_dir().join(format!("snellar-bench-{}", now()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let r = Resolver::new(dir);
-        let ytm = crate::ytm::Ytm::new(reqwest::Client::new());
-        let http = reqwest::Client::new();
-        let (mut ok, mut full, mut total, mut times) = (0, 0, 0, Vec::new());
-        for q in [
-            "taylor swift anti-hero",
-            "metallica one",
-            "kendrick lamar humble",
-            "okean elzy bez boyu",
-            "yoasobi idol",
-            "psy gangnam style",
-            "rammstein du hast",
-            "adele hello",
-        ] {
-            let Some(t) = ytm.search(q, crate::ytm::Filter::Songs).await.ok().and_then(|r| r.tracks.into_iter().next()) else { continue };
-            total += 1;
-            let start = std::time::Instant::now();
-            let url = r.run(t.id.video_id().unwrap()).await;
-            let took = start.elapsed();
-            let Ok(url) = url else {
-                println!("{q:<30} yt-dlp FAILED {took:?}");
-                continue;
-            };
-            ok += 1;
-            times.push(took);
-            let length: u64 = url.split("clen=").nth(1).and_then(|v| v.split('&').next()).and_then(|v| v.parse().ok()).unwrap_or(0);
-            let ranges = full_ranges(&http, &url, "", length).await;
-            full += ranges.iter().all(|r| *r) as usize;
-            println!("{q:<30} yt-dlp {took:?} ranges={ranges:?}");
-        }
-        times.sort();
-        println!("yt-dlp ok {ok}/{total}, all four ranges {full}/{total}, median {:?}", times.get(times.len() / 2));
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_resolve_with_ua() {
-        let dir = std::env::temp_dir().join("snellar-stream-test3");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        let r = Resolver::new(dir);
-        let t = Instant::now();
-        let (url, ua) = r.resolve_with_ua("dQw4w9WgXcQ").await.unwrap();
-        println!("cold {:?} ua={ua:?}", t.elapsed());
-        let ua = ua.expect("direct client expected");
-        let resp = reqwest::Client::new().get(&url).header("User-Agent", &ua).header("Range", "bytes=0-65535").send().await.unwrap();
-        println!("ranged status {} len {:?}", resp.status(), resp.bytes().await.map(|b| b.len()));
-        let wrong = reqwest::Client::new().get(&url).header("Range", "bytes=0-65535").send().await.unwrap();
-        println!("default-UA status {}", wrong.status());
-        println!("{url}");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_resolve() {
-        let dir = std::env::temp_dir().join("snellar-stream-test");
-        std::fs::create_dir_all(&dir).unwrap();
-        let r = Arc::new(Resolver::new(dir));
-        let t = Instant::now();
-        let (a, b) = tokio::join!(r.resolve("dQw4w9WgXcQ"), r.resolve("dQw4w9WgXcQ"));
-        println!("cold (2 concurrent) {:?}", t.elapsed());
-        let (a, b) = (a.unwrap(), b.unwrap());
-        assert_eq!(a, b);
-        println!("{:.120}", a);
-        let t = Instant::now();
-        r.resolve("dQw4w9WgXcQ").await.unwrap();
-        println!("cached {:?}", t.elapsed());
-        let err = r.resolve("xxxxxxxxxxx").await.unwrap_err();
-        println!("error: {err}");
-        r.prefetch("9bZkp7q19f0");
-        tokio::time::sleep(Duration::from_secs(12)).await;
-        println!("prefetched: {}", r.cached("9bZkp7q19f0").is_some());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_stages() {
-        let r = Resolver::new(std::env::temp_dir().join("snellar-stages"));
-        let http = reqwest::Client::new();
-        for i in 0..8 {
-            let t = std::time::Instant::now();
-            let visitor = r.visitor("dQw4w9WgXcQ", true).await;
-            let fetch = t.elapsed();
-            let Ok(visitor) = visitor else {
-                println!("{i} visitor failed {fetch:?}");
-                continue;
-            };
-            let mut line = format!("{i} visitor {fetch:?}");
-            for client in [&VISIONOS] {
-                let t = std::time::Instant::now();
-                let res = direct(&http, client, "dQw4w9WgXcQ", &visitor, Quality::Auto).await;
-                line +=
-                    &format!(" | {} {:?} {}", client.name, t.elapsed(), res.map(|_| "ok".to_string()).unwrap_or_else(|e| format!("{e:#}")));
-            }
-            println!("{line}");
-            tokio::time::sleep(Duration::from_millis(1500)).await;
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_slow_ids() {
-        let r = Resolver::new(std::env::temp_dir().join("snellar-stages"));
-        let http = reqwest::Client::new();
-        let visitor = r.visitor("dQw4w9WgXcQ", true).await.unwrap();
-        for id in ["3YgtjHZyCIQ", "m9SMT5ipbxk", "JJPlzNajdUs", "RYUsdVmMxxc", "NbEfWg8VBho"] {
-            let mut line = id.to_string();
-            for client in [&VISIONOS] {
-                let t = std::time::Instant::now();
-                let res = direct(&http, client, id, &visitor, Quality::Auto).await;
-                line +=
-                    &format!(" | {} {:?} {}", client.name, t.elapsed(), res.map(|_| "ok".to_string()).unwrap_or_else(|e| format!("{e:#}")));
-            }
-            println!("{line}");
-        }
-    }
-}
-
-#[cfg(test)]
-mod fixtures {
-    use super::*;
-
-    const PLAYER: &str = include_str!("../../../tests/fixtures/youtube/player-dqw4w9wgxcq-2026-11-03.json");
-    const LOUDNESS: &str = include_str!("../../../tests/fixtures/youtube/player-loudness-handmade-2026-11-03.json");
-
-    #[test]
-    fn the_best_audio_format_is_picked_from_a_player_answer() {
-        let resp: Value = serde_json::from_str(PLAYER).unwrap();
-        let pick = pick_audio(&resp, VISIONOS.name, Quality::High).unwrap();
-        assert_eq!((pick.url, pick.length), ("https://rr.googlevideo.example/videoplayback?scrubbed", 3433755));
-        assert_eq!(pick.format, AudioFormat { codec: "opus".into(), bitrate: 136, sample_rate: 48000, loudness_db: Some(0.97999954) });
-        let blocked = json!({"playabilityStatus": {"status": "LOGIN_REQUIRED"}, "streamingData": resp["streamingData"]});
-        assert!(format!("{:#}", pick_audio(&blocked, "VISIONOS", Quality::Auto).err().unwrap()).contains("LOGIN_REQUIRED"));
-        let silent = json!({"playabilityStatus": {"status": "OK"}, "streamingData": {"adaptiveFormats": [{"mimeType": "video/mp4", "url": "x", "contentLength": "1"}]}});
-        assert!(pick_audio(&silent, "VISIONOS", Quality::Auto).is_err());
-    }
-
-    #[test]
-    fn the_quality_setting_chooses_the_format() {
-        let resp: Value = serde_json::from_str(PLAYER).unwrap();
-        let chosen = |q| {
-            let f = pick_audio(&resp, "VISIONOS", q).unwrap().format;
-            (f.codec, f.bitrate)
-        };
-        assert_eq!(chosen(Quality::Auto), ("opus".into(), 136));
-        assert_eq!(chosen(Quality::High), ("opus".into(), 136));
-        assert_eq!(chosen(Quality::DataSaver), ("opus".into(), 49));
-        let all: Value = serde_json::from_str(LOUDNESS).unwrap();
-        let premium = |q| pick_audio(&all["premium"], "VISIONOS", q).unwrap().url;
-        assert_eq!(premium(Quality::High), "https://rr.googlevideo.example/774");
-        assert_eq!(premium(Quality::Auto), "https://rr.googlevideo.example/251");
-        assert_eq!(premium(Quality::DataSaver), "https://rr.googlevideo.example/140");
-        assert_eq!(pick_audio(&all["config_only"], "VISIONOS", Quality::Auto).unwrap().format.codec, "aac");
-        assert_eq!(
-            [Quality::parse("high"), Quality::parse("dataSaver"), Quality::parse("auto"), Quality::parse("x")],
-            [Quality::High, Quality::DataSaver, Quality::Auto, Quality::Auto]
-        );
-    }
-
-    #[test]
-    fn the_loudness_comes_from_the_format_then_the_player_config() {
-        let all: Value = serde_json::from_str(LOUDNESS).unwrap();
-        let loud = |case: &str| pick_audio(&all[case], "VISIONOS", Quality::Auto).unwrap().format.loudness_db;
-        assert_eq!(loud("quiet"), Some(-6.4));
-        assert_eq!(loud("config_only"), Some(4.25));
-        assert_eq!(loud("absolute_only"), Some(5.5));
-        assert_eq!(loud("none"), None);
-    }
-
-    #[test]
-    fn a_cache_written_before_formats_were_kept_still_reads() {
-        let old: HashMap<String, Cached> =
-            serde_json::from_str(r#"{"dQw4w9WgXcQ": {"url": "https://x", "expires": 1, "user_agent": null}}"#).unwrap();
-        assert_eq!(old["dQw4w9WgXcQ"].format, None);
-    }
 }

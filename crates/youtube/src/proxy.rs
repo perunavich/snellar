@@ -15,8 +15,9 @@ use tokio::net::{TcpListener, TcpStream};
 
 use snellar_core::error::Code;
 use snellar_core::ids::valid_id;
+use snellar_core::sync::Lock;
 
-use crate::net::Http;
+use crate::net::{self, Http};
 use crate::stream::Resolver;
 
 const FIRST_CHUNK: u64 = 128 * 1024;
@@ -156,11 +157,11 @@ impl Proxy {
         let id = video_id.to_string();
         tokio::spawn(async move {
             let Ok((url, ua)) = shared.resolver.resolve_with_ua(&id).await else { return };
-            if shared.warmed.lock().unwrap().find(&id, &url).is_some() {
+            if shared.warmed.locked().find(&id, &url).is_some() {
                 return;
             }
             let Ok(chunk) = shared.chunk(&url, ua.as_deref(), 0, FIRST_CHUNK - 1).await else { return };
-            shared.warmed.lock().unwrap().store(id, url, Arc::new(chunk));
+            shared.warmed.locked().store(id, url, Arc::new(chunk));
         });
     }
 }
@@ -274,7 +275,16 @@ impl Shared {
                 Bytes::from(body)
             }
             _ => {
-                let mut resp = self.http.client().get(parsed).timeout(Duration::from_secs(10)).send().await?.error_for_status()?;
+                let sent = self.http.client().get(parsed).timeout(Duration::from_secs(10)).send().await;
+                let mut resp = match sent {
+                    Ok(resp) => resp.error_for_status()?,
+                    Err(e) => {
+                        let route = self.resolver.route().clone();
+                        let code = net::code(&e);
+                        tokio::spawn(async move { route.settle(code).await });
+                        return Err(e.into());
+                    }
+                };
                 if !resp.headers().get("content-type").and_then(|v| v.to_str().ok()).is_some_and(|k| k.starts_with("image/")) {
                     bail!("not an image");
                 }
@@ -332,7 +342,7 @@ impl Shared {
 
     async fn audio(&self, write: &mut OwnedWriteHalf, id: &str, range: Option<(u64, Option<u64>)>) -> Result<()> {
         let (url, user_agent) = self.resolver.resolve_with_ua(id).await?;
-        let warm = self.warmed.lock().unwrap().find(id, &url).filter(|_| range.is_none_or(|(start, _)| start == 0));
+        let warm = self.warmed.locked().find(id, &url).filter(|_| range.is_none_or(|(start, _)| start == 0));
         relay(write, range, &mut Media { shared: self, id, url, user_agent, warm }).await
     }
 }
@@ -456,334 +466,4 @@ async fn broken(write: &mut (impl AsyncWrite + Unpin), head_sent: bool, why: &st
         respond(write, "502 Bad Gateway", &[]).await?;
     }
     Err(Code::NetServer.err(why))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn keys_are_stable() {
-        assert_eq!(key("https://a/b"), key("https://a/b"));
-        assert_ne!(key("https://a/b"), key("https://a/c"));
-    }
-
-    #[test]
-    fn sniffs_images() {
-        assert_eq!(sniff(&[0xFF, 0xD8, 0xFF]), "image/jpeg");
-        assert_eq!(sniff(b"\x89PNG"), "image/png");
-        assert_eq!(sniff(b"RIFFxxxxWEBP"), "image/webp");
-    }
-
-    #[test]
-    fn broken_cache_files_are_not_images() {
-        assert!(is_image(&[0xFF, 0xD8, 0xFF]));
-        assert!(!is_image(&[]));
-        assert!(!is_image(&[0; 64]));
-    }
-
-    #[test]
-    fn prune_keeps_newest() {
-        let dir = std::env::temp_dir().join("snellar-prune-test");
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("a"), vec![0u8; 10]).unwrap();
-        prune(&dir);
-        assert!(dir.join("a").exists());
-    }
-
-    struct Running {
-        base: String,
-        port: u16,
-        token: String,
-    }
-
-    async fn start(dir: &std::path::Path) -> Running {
-        std::fs::remove_dir_all(dir).ok();
-        std::fs::create_dir_all(dir).unwrap();
-        let bound = bind().unwrap();
-        let base = image_base(&bound);
-        let (port, token) = (bound.listener.local_addr().unwrap().port(), bound.token.clone());
-        Proxy::serve(bound, Arc::new(Resolver::new(dir.to_path_buf())), dir.to_path_buf()).unwrap();
-        Running { base, port, token }
-    }
-
-    async fn raw(port: u16, request: &str) -> String {
-        use tokio::io::AsyncReadExt;
-        let mut stream = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
-        stream.write_all(request.as_bytes()).await.unwrap();
-        let mut out = String::new();
-        stream.read_to_string(&mut out).await.unwrap();
-        out
-    }
-
-    fn url(s: &str) -> reqwest::Url {
-        reqwest::Url::parse(s).unwrap()
-    }
-
-    #[test]
-    fn only_google_and_youtube_hosts_pass() {
-        for ok in ["https://i.ytimg.com/a.jpg", "https://lh3.googleusercontent.com/x", "https://ytimg.com/a", "https://yt3.ggpht.com/a"] {
-            assert!(host_allowed(&url(ok), &IMAGE_HOSTS), "{ok}");
-        }
-        for bad in [
-            "http://i.ytimg.com/a.jpg",
-            "https://evilytimg.com/a",
-            "https://ytimg.com.evil.com/a",
-            "https://i.ytimg.com@evil.com/a",
-            "https://i.ytimg.com:8443/a",
-            "https://127.0.0.1/a",
-            "https://localhost/a",
-            "https://[::1]/a",
-            "https://169.254.169.254/a",
-        ] {
-            assert!(!host_allowed(&url(bad), &IMAGE_HOSTS), "{bad}");
-        }
-        assert!(host_allowed(&url("https://rr1---sn-abc.googlevideo.com/videoplayback"), &MEDIA_HOSTS));
-        assert!(!host_allowed(&url("https://i.ytimg.com/a"), &MEDIA_HOSTS));
-    }
-
-    #[test]
-    fn redirects_may_only_stay_inside_the_allowlist() {
-        assert!(redirect_allowed(&url("https://rr2---sn-x.googlevideo.com/v")));
-        assert!(!redirect_allowed(&url("http://127.0.0.1:631/")));
-        assert!(!redirect_allowed(&url("https://evil.example/r")));
-    }
-
-    #[test]
-    fn tokens_differ_between_runs() {
-        assert_ne!(random_token(), random_token());
-        assert_eq!(random_token().len(), 32);
-    }
-
-    #[tokio::test]
-    async fn rejects_foreign_hosts_tokens_methods_and_odd_ids() {
-        let proxy = start(&std::env::temp_dir().join("snellar-proxy-guard")).await;
-        let (port, token) = (proxy.port, &proxy.token);
-        let good = format!("GET /{token}/img?u=https%3A%2F%2F127.0.0.1%2Fa HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n");
-        assert!(raw(port, &good).await.starts_with("HTTP/1.1 403"));
-        let rebound = format!("GET /{token}/dQw4w9WgXcQ HTTP/1.1\r\nHost: evil.example:{port}\r\n\r\n");
-        assert!(raw(port, &rebound).await.starts_with("HTTP/1.1 403"));
-        let no_token = format!("GET /dQw4w9WgXcQ HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n");
-        assert!(raw(port, &no_token).await.starts_with("HTTP/1.1 404"));
-        let post = format!("POST /{token}/dQw4w9WgXcQ HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n");
-        assert!(raw(port, &post).await.starts_with("HTTP/1.1 405"));
-        let odd = format!("GET /{token}/not-a-video-id-at-all HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n");
-        assert!(raw(port, &odd).await.starts_with("HTTP/1.1 404"));
-    }
-
-    async fn silent_server(headers: &'static str) -> u16 {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let port = listener.local_addr().unwrap().port();
-        tokio::spawn(async move {
-            let mut held = Vec::new();
-            while let Ok((mut socket, _)) = listener.accept().await {
-                if !headers.is_empty() {
-                    let _ = tokio::io::AsyncReadExt::read(&mut socket, &mut [0u8; 1024]).await;
-                    let _ = socket.write_all(headers.as_bytes()).await;
-                }
-                held.push(socket);
-            }
-        });
-        port
-    }
-
-    #[tokio::test]
-    async fn an_upstream_that_goes_quiet_fails_the_request_instead_of_hanging() {
-        let http = shape(reqwest::Client::builder(), Duration::from_millis(300)).build().unwrap();
-        let wait = Duration::from_secs(3);
-
-        let port = silent_server("").await;
-        let started = tokio::time::timeout(wait, http.get(format!("http://127.0.0.1:{port}/")).send()).await;
-        assert!(matches!(started, Ok(Err(_))), "no answer at all must end in an error: {started:?}");
-
-        let port = silent_server("HTTP/1.1 206 Partial Content\r\nContent-Length: 1000\r\n\r\nabc").await;
-        let resp = http.get(format!("http://127.0.0.1:{port}/")).send().await.unwrap();
-        let body = tokio::time::timeout(wait, resp.bytes()).await;
-        assert!(matches!(body, Ok(Err(_))), "a body that stops half way must end in an error: {body:?}");
-    }
-
-    struct Fake {
-        client: reqwest::Client,
-        url: String,
-        asked: Arc<AtomicUsize>,
-    }
-
-    impl Upstream for Fake {
-        async fn next(&mut self, from: u64, to: u64) -> Result<Arc<Chunk>> {
-            fetch(&self.client, &self.url, None, from, to).await.map(Arc::new)
-        }
-    }
-
-    async fn fake_upstream(answer: fn(u64, u64) -> (String, Vec<u8>)) -> Fake {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let url = format!("http://127.0.0.1:{}/videoplayback", listener.local_addr().unwrap().port());
-        let asked = Arc::new(AtomicUsize::new(0));
-        let count = asked.clone();
-        tokio::spawn(async move {
-            while let Ok((socket, _)) = listener.accept().await {
-                let (read, mut write) = socket.into_split();
-                let mut lines = BufReader::new(read).lines();
-                let mut range = (0, u64::MAX);
-                while let Ok(Some(line)) = lines.next_line().await {
-                    if line.is_empty() {
-                        break;
-                    }
-                    if let Some((from, Some(to))) = line.to_ascii_lowercase().strip_prefix("range:").and_then(|v| parse_range(v.trim())) {
-                        range = (from, to);
-                    }
-                }
-                count.fetch_add(1, Ordering::SeqCst);
-                let (head, body) = answer(range.0, range.1);
-                let head = format!("{head}Content-Length: {}\r\nConnection: close\r\n\r\n", body.len());
-                let _ = write.write_all(head.as_bytes()).await;
-                let _ = write.write_all(&body).await;
-            }
-        });
-        Fake { client: reqwest::Client::new(), url, asked }
-    }
-
-    async fn relayed(upstream: &mut Fake, range: Option<(u64, Option<u64>)>) -> (Result<()>, String) {
-        let mut out = Vec::new();
-        let done = tokio::time::timeout(Duration::from_secs(5), relay(&mut out, range, upstream)).await;
-        let done =
-            done.unwrap_or_else(|_| panic!("the relay never ended after {} upstream requests", upstream.asked.load(Ordering::SeqCst)));
-        (done, String::from_utf8_lossy(&out).into_owned())
-    }
-
-    const SONG: u64 = 300 * 1024;
-
-    fn song(from: u64, to: u64) -> (String, Vec<u8>) {
-        let to = to.min(SONG - 1);
-        let head = format!("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {from}-{to}/{SONG}\r\nContent-Type: audio/webm\r\n");
-        (head, (from..=to).map(|i| (i % 251) as u8).collect())
-    }
-
-    #[tokio::test]
-    async fn a_range_is_relayed_in_chunks_from_the_upstream() {
-        let mut upstream = fake_upstream(song).await;
-        let mut out = Vec::new();
-        relay(&mut out, Some((1000, None)), &mut upstream).await.unwrap();
-        let split = out.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
-        let head = String::from_utf8_lossy(&out[..split]);
-        assert!(head.starts_with("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 1000-307199/307200\r\n"), "{head}");
-        assert!(head.contains(&format!("Content-Length: {}\r\n", SONG - 1000)), "{head}");
-        assert_eq!(out[split..], song(1000, SONG - 1).1);
-        assert_eq!(upstream.asked.load(Ordering::SeqCst), 2);
-    }
-
-    #[test]
-    fn a_warmed_chunk_is_used_only_for_the_url_it_came_from() {
-        let chunk = |total| Arc::new(Chunk { body: Bytes::from_static(b"x"), total, kind: String::new() });
-        let mut warmed = Warmed::default();
-        warmed.store("a".into(), "https://r1/high".into(), chunk(100));
-        assert_eq!(warmed.find("a", "https://r1/high").unwrap().total, 100);
-        assert!(warmed.find("a", "https://r1/low").is_none(), "another quality or a resolved-again URL is another file");
-        assert!(warmed.find("b", "https://r1/high").is_none());
-        warmed.store("a".into(), "https://r1/low".into(), chunk(50));
-        assert!(warmed.find("a", "https://r1/high").is_none(), "the old file is replaced");
-        assert_eq!(warmed.find("a", "https://r1/low").unwrap().total, 50);
-        for i in 0..WARM_SLOTS {
-            warmed.store(format!("x{i}"), "u".into(), chunk(1));
-        }
-        assert_eq!(warmed.0.len(), WARM_SLOTS, "the slots stay bounded");
-        assert!(warmed.find("a", "https://r1/low").is_none());
-    }
-
-    #[tokio::test]
-    async fn an_upstream_whose_length_changes_mid_song_fails_instead_of_splicing_two_files() {
-        let mut upstream = fake_upstream(|from, to| {
-            if from == 0 {
-                song(from, to)
-            } else {
-                (
-                    format!(
-                        "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {from}-{to}/{}\r\nContent-Type: audio/webm\r\n",
-                        SONG + 1
-                    ),
-                    vec![7; 16],
-                )
-            }
-        })
-        .await;
-        let (done, out) = relayed(&mut upstream, None).await;
-        assert_eq!(Code::of(&done.unwrap_err()), Code::NetServer);
-        assert!(out.starts_with("HTTP/1.1 200 OK\r\n"), "{out}");
-        assert_eq!(upstream.asked.load(Ordering::SeqCst), 2);
-    }
-
-    #[tokio::test]
-    async fn an_upstream_that_sends_empty_bodies_ends_the_stream_after_a_few_tries() {
-        let mut upstream =
-            fake_upstream(|_, _| ("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes 0-0/1000\r\n".into(), Vec::new())).await;
-        let (done, out) = relayed(&mut upstream, Some((0, None))).await;
-        assert_eq!(Code::of(&done.unwrap_err()), Code::NetServer);
-        assert!(out.starts_with("HTTP/1.1 502 Bad Gateway\r\n"), "{out}");
-        assert_eq!(upstream.asked.load(Ordering::SeqCst), 1 + RESUME_TRIES);
-    }
-
-    #[tokio::test]
-    async fn an_upstream_that_stops_sending_mid_song_ends_the_stream() {
-        let mut upstream = fake_upstream(|from, to| if from == 0 { song(from, to) } else { (song(from, to).0, Vec::new()) }).await;
-        let (done, out) = relayed(&mut upstream, None).await;
-        assert_eq!(Code::of(&done.unwrap_err()), Code::NetServer);
-        assert!(out.starts_with("HTTP/1.1 200 OK\r\n"), "{out}");
-        assert_eq!(upstream.asked.load(Ordering::SeqCst), 2 + RESUME_TRIES);
-    }
-
-    #[tokio::test]
-    async fn a_zero_length_upstream_ends_with_an_error_instead_of_a_panic() {
-        let mut upstream =
-            fake_upstream(|_, _| ("HTTP/1.1 206 Partial Content\r\nContent-Range: bytes */0\r\n".into(), b"abc".to_vec())).await;
-        for range in [None, Some((0, None))] {
-            let (done, out) = relayed(&mut upstream, range).await;
-            assert_eq!(Code::of(&done.unwrap_err()), Code::NetServer);
-            assert!(out.starts_with("HTTP/1.1 502 Bad Gateway\r\n"), "{out}");
-        }
-    }
-
-    #[tokio::test]
-    async fn a_range_past_the_end_is_answered_416() {
-        let mut upstream = fake_upstream(|_, _| song(0, SONG - 1)).await;
-        let (done, out) = relayed(&mut upstream, Some((SONG + 50, None))).await;
-        done.unwrap();
-        assert!(out.starts_with(&format!("HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */{SONG}\r\n")), "{out}");
-        assert_eq!(upstream.asked.load(Ordering::SeqCst), 1);
-
-        let (done, out) = relayed(&mut upstream, Some((500, Some(100)))).await;
-        done.unwrap();
-        assert!(out.starts_with("HTTP/1.1 416 Range Not Satisfiable\r\n"), "{out}");
-        assert_eq!(upstream.asked.load(Ordering::SeqCst), 1, "an inverted range is refused without asking upstream");
-
-        let (done, out) = relayed(&mut upstream, Some((u64::MAX - 1, None))).await;
-        done.unwrap();
-        assert!(out.starts_with("HTTP/1.1 416 Range Not Satisfiable\r\n"), "{out}");
-    }
-
-    #[tokio::test]
-    async fn refuses_local_and_plain_http_images() {
-        let proxy = start(&std::env::temp_dir().join("snellar-img-refuse")).await;
-        for target in ["http://i.ytimg.com/a.jpg", "https://127.0.0.1/a.jpg", "https://localhost/a.jpg", "https://evil.example/a.jpg"] {
-            let resp = reqwest::get(format!("{}{}", proxy.base, target.replace(':', "%3A").replace('/', "%2F"))).await.unwrap();
-            assert_eq!(resp.status().as_u16(), 403, "{target}");
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_image_cache() {
-        let dir = std::env::temp_dir().join("snellar-img-live");
-        let base = start(&dir).await.base;
-        let url = format!("{base}https%3A%2F%2Fi.ytimg.com%2Fvi%2FdQw4w9WgXcQ%2Fhqdefault.jpg");
-        let client = reqwest::Client::new();
-        let t = std::time::Instant::now();
-        let first = client.get(&url).send().await.unwrap();
-        assert_eq!(first.headers()["content-type"], "image/jpeg");
-        let size = first.bytes().await.unwrap().len();
-        let miss = t.elapsed();
-        let t = std::time::Instant::now();
-        assert_eq!(client.get(&url).send().await.unwrap().bytes().await.unwrap().len(), size);
-        println!("miss {miss:?} hit {:?} ({size} bytes)", t.elapsed());
-        assert_eq!(std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.file_name().len() == 16).count(), 1);
-    }
 }

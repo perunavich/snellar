@@ -3,10 +3,11 @@ import QtQuick
 import QtQuick.Controls
 import Snellar
 
-IconButton {
+PopButton {
     id: button
     property var lists: []
     property var song: null
+    property var holding: ({})
     property bool added: false
     property bool naming: false
     readonly property string playing: Api.current ? Api.current.id : ""
@@ -15,7 +16,7 @@ IconButton {
     visible: !!Api.current
     icon: added ? "check" : "plus"
     tip: picker.opened ? "" : qsTr("Add to playlist")
-    active: added || picker.opened
+    active: added || held
     onClicked: picker.opened ? picker.close() : picker.open()
     onPlayingChanged: added = false
     onPickingChanged: Nav.picking = picking
@@ -57,6 +58,8 @@ IconButton {
 
         onAboutToShow: {
             button.song = Api.current
+            button.holding = ({})
+            Api.playlistsWith(button.song, v => button.holding = v)
             button.naming = false
             field.clear()
             picker.above = button.mapToItem(null, 0, button.height).y + picker.tallest + Theme.gap > button.Window.height
@@ -64,11 +67,11 @@ IconButton {
         }
         onOpened: places.forceActiveFocus()
 
-        background: Rectangle {
-            radius: Theme.rLg
-            color: Theme.menu
-            border.width: 1
-            border.color: Theme.separator
+        background: LiquidShape {
+            id: shape
+            popup: picker
+            wanted: button
+            content: picker.contentItem
         }
 
         contentItem: Column {
@@ -106,7 +109,6 @@ IconButton {
                     anchors.fill: parent
                     enabled: !button.naming
                     hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         button.naming = true
                         field.forceActiveFocus()
@@ -149,32 +151,16 @@ IconButton {
                 Keys.onReturnPressed: if (currentIndex >= 0) button.add(button.lists[currentIndex])
                 Keys.onEnterPressed: if (currentIndex >= 0) button.add(button.lists[currentIndex])
 
-                delegate: Item {
+                delegate: MenuRow {
                     id: place
                     required property var modelData
                     required property int index
                     width: ListView.view.width
-                    height: Theme.controlMd
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: Theme.rSm
-                        color: placeArea.containsMouse || (place.ListView.isCurrentItem && places.activeFocus) ? Theme.fillHover : "transparent"
-                    }
-                    Text {
-                        anchors { left: parent.left; right: parent.right; leftMargin: Theme.spaceMd; rightMargin: Theme.spaceMd; verticalCenter: parent.verticalCenter }
-                        text: place.modelData.name
-                        color: Theme.text
-                        font.pixelSize: Theme.fsBody
-                        elide: Text.ElideRight
-                    }
-                    MouseArea {
-                        id: placeArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: button.add(place.modelData)
-                    }
+                    text: modelData.name
+                    glyph: "playlist"
+                    marked: button.holding[modelData.id] === true
+                    highlighted: hovered || (place.ListView.isCurrentItem && places.activeFocus)
+                    onClicked: button.add(modelData)
                 }
             }
         }

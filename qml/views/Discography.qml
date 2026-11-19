@@ -30,40 +30,35 @@ Item {
         Column {
             width: parent.width
             spacing: Theme.spaceXs
-            Text {
-                width: parent.width
-                text: qsTr("Discography")
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.fsLargeTitle
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
+            PageTitle { width: parent.width; text: qsTr("Discography") }
             Link {
-                visible: !!view.disco
-                text: view.disco ? view.disco.artist.name : ""
+                enabled: !!view.disco
+                text: view.disco ? view.disco.artist.name : " "
                 onClicked: Nav.artist(view.disco.artist.id)
             }
         }
 
         Flow {
+            id: filters
+            readonly property bool paired: width >= 2 * Theme.segmentWide + spacing
+            readonly property int half: Math.floor((width - spacing) / 2)
             width: parent.width
             spacing: Theme.spaceMd
             IosSegment {
-                width: Math.max(Theme.segmentWide, fit)
+                width: filters.paired ? Math.max(filters.half, fit) : filters.width
                 current: view.filter
                 options: [{ key: "all", label: qsTr("All") }, { key: "albums", label: qsTr("Albums") }, { key: "singles", label: qsTr("Singles & EPs") }]
                 onPicked: key => view.filter = key
             }
             IosSegment {
-                width: Math.max(Theme.segmentWide, fit)
+                width: filters.paired ? filters.width - filters.half - filters.spacing : filters.width
                 current: view.sort
                 options: [{ key: "default", label: qsTr("Default") }, { key: "newest", label: qsTr("Newest") }, { key: "oldest", label: qsTr("Oldest") }, { key: "title", label: qsTr("A–Z") }]
                 onPicked: key => view.sort = key
             }
         }
 
-        ListSkeleton { width: parent.width; visible: res.loading && !view.disco }
+        ListSkeleton { width: parent.width; grid: true; visible: res.loading && !view.disco }
         ErrorState { width: parent.width; fetch: res }
 
         Text {
@@ -73,13 +68,10 @@ Item {
             font.pixelSize: Theme.fsCallout
         }
 
-        Flow {
+        CardGrid {
             width: parent.width
-            spacing: Theme.spaceXl
-            Repeater {
-                model: view.shown
-                delegate: AlbumCard { required property var modelData; album: modelData }
-            }
+            model: view.shown
+            delegate: AlbumCard { required property var modelData; album: modelData }
         }
     }
 }

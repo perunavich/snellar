@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
@@ -7,24 +7,29 @@ use anyhow::{Context, Result};
 use serde_json::{Value, json};
 
 use snellar_core::error::Code;
-use snellar_core::ids::TrackId;
+use snellar_core::ids::{TrackId, valid_id};
 use snellar_core::journal;
 use snellar_core::model::{
-    Album, AlbumCard, Artist, ArtistCard, Browse, Discography, Hit, Kind, Page, Ref, SearchResult, Shelf, Suggestions, Track,
+    Album, AlbumCard, Artist, ArtistCard, Browse, Discography, Hit, Kind, Page, Ref, SearchResult, Shelf, Suggestions, Track, Upload,
 };
 pub use snellar_core::source::Filter;
+use snellar_core::sync::Lock;
 
 use crate::net::{Http, checked, net};
 use crate::title;
 
 const ORIGIN: &str = "https://music.youtube.com";
 const HEDGE_AFTER: Duration = Duration::from_millis(1200);
+const QUEUE_LENGTHS_AT_ONCE: usize = 100;
 const CLIENT_VERSION: &str = "1.20250929.03.00";
 const USER_AGENT: &str = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const SONGS_PARAMS: &str = "EgWKAQIIAWoMEA4QChADEAQQCRAF";
 const ALBUMS_PARAMS: &str = "EgWKAQIYAWoMEA4QChADEAQQCRAF";
 const ARTISTS_PARAMS: &str = "EgWKAQIgAWoMEA4QChADEAQQCRAF";
 const VIDEOS_PARAMS: &str = "EgWKAQIQAWoMEA4QChADEAQQCRAF";
+const COMMUNITY_PLAYLISTS_PARAMS: &str = "EgeKAQQoAEABagwQDhAKEAMQBBAJEAU=";
+const FEATURED_PLAYLISTS_PARAMS: &str = "EgeKAQQoADgBagwQDhAKEAMQBBAJEAU=";
+const PLAYLIST_RUN: usize = 3;
 const MAX_PAGES: usize = 20;
 const KINDS: [&str; 10] = ["Song", "Video", "Album", "Single", "EP", "Artist", "Playlist", "Episode", "Podcast", "Profile"];
 
@@ -59,6 +64,14 @@ struct Sub {
     year: String,
     duration: f64,
     rest: Vec<String>,
+    named: Vec<(usize, Ref)>,
+}
+
+impl Sub {
+    fn credited(&self) -> Vec<Ref> {
+        let part = self.named.iter().find(|(_, r)| !r.id.is_empty()).or(self.named.first()).map(|(part, _)| *part);
+        self.named.iter().filter(|(p, _)| Some(*p) == part).map(|(_, r)| r.clone()).collect()
+    }
 }
 
 fn at<'a>(v: &'a Value, path: &str) -> Option<&'a Value> {
@@ -128,11 +141,16 @@ fn parse_duration(s: &str) -> Option<f64> {
 
 fn split_sub<'a>(runs: impl IntoIterator<Item = &'a Value>) -> Sub {
     let mut sub = Sub::default();
+    let mut part = 0;
     for run in runs {
         let Some(t) = text(run, "text") else { continue };
         let browse = text(run, "navigationEndpoint.browseEndpoint.browseId").unwrap_or_default();
-        if browse.starts_with("UC") || browse.starts_with("MPLA") {
-            sub.artists.push(Ref { id: browse.trim_start_matches("MPLA").into(), name: t.into() });
+        if t.trim() == "•" {
+            part += 1;
+        } else if browse.starts_with("UC") || browse.starts_with("MPLA") {
+            let artist = Ref { id: browse.trim_start_matches("MPLA").into(), name: t.into() };
+            sub.named.push((part, artist.clone()));
+            sub.artists.push(artist);
         } else if browse.starts_with("MPRE") {
             sub.album = Some(Ref { id: browse.into(), name: t.into() });
         } else if let Some(d) = parse_duration(t) {
@@ -143,11 +161,36 @@ fn split_sub<'a>(runs: impl IntoIterator<Item = &'a Value>) -> Sub {
             if sub.kind.is_empty() {
                 sub.kind = t.into();
             }
-        } else if !matches!(t.trim(), "" | "•" | "&" | ",") {
+        } else if !matches!(t.trim(), "" | "&" | ",") {
             sub.rest.push(t.into());
+            if !t.contains(|c: char| c.is_ascii_digit()) {
+                sub.named.push((part, Ref { id: String::new(), name: t.into() }));
+            }
         }
     }
     sub
+}
+
+const VIDEO_TYPE: &str = "watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType";
+
+fn upload(kind: Option<&str>) -> Upload {
+    match kind {
+        Some("MUSIC_VIDEO_TYPE_ATV") => Upload::Song,
+        Some("MUSIC_VIDEO_TYPE_OMV") => Upload::Video,
+        Some("MUSIC_VIDEO_TYPE_OFFICIAL_SOURCE_MUSIC") => Upload::Official,
+        Some("MUSIC_VIDEO_TYPE_UGC") => Upload::User,
+        Some("MUSIC_VIDEO_TYPE_PODCAST_EPISODE") => Upload::Podcast,
+        _ => Upload::Unknown,
+    }
+}
+
+fn row_upload(r: &Value) -> Upload {
+    let paths = [
+        "overlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint",
+        "navigationEndpoint.watchEndpoint",
+        "thumbnailOverlay.musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer.playNavigationEndpoint.watchEndpoint",
+    ];
+    paths.iter().map(|p| upload(text(r, &format!("{p}.{VIDEO_TYPE}")))).find(|u| !u.is_unknown()).unwrap_or_default()
 }
 
 fn explicit(r: &Value) -> bool {
@@ -159,16 +202,7 @@ fn explicit(r: &Value) -> bool {
 fn build(title: &str, video: Option<&str>, browse: Option<&str>, sub: Sub, r: &Value) -> Option<Item> {
     let thumb = thumb(r);
     if let Some(id) = video {
-        let artists = if sub.artists.is_empty() {
-            sub.rest
-                .iter()
-                .filter(|s| !s.contains(|c: char| c.is_ascii_digit()))
-                .map(|name| Ref { id: String::new(), name: name.clone() })
-                .take(1)
-                .collect()
-        } else {
-            sub.artists
-        };
+        let artists = sub.credited();
         return Some(Item::Track(Track {
             id: TrackId::youtube(id),
             title: title.into(),
@@ -178,6 +212,8 @@ fn build(title: &str, video: Option<&str>, browse: Option<&str>, sub: Sub, r: &V
             thumb,
             explicit: explicit(r),
             video: false,
+            upload: row_upload(r),
+            ..Track::default()
         }));
     }
     let id = browse?;
@@ -221,23 +257,27 @@ fn entry(e: &Value) -> Option<Item> {
 
 fn panel_track(r: &Value) -> Option<Track> {
     let sub = split_sub(items(r, "longBylineText.runs"));
-    let video = text(r, "navigationEndpoint.watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType")
-        .is_some_and(|kind| kind != "MUSIC_VIDEO_TYPE_ATV");
+    let artists = sub.credited();
+    let raw = text(r, &format!("navigationEndpoint.watchEndpoint.{VIDEO_TYPE}"));
+    let video = raw.is_some_and(|kind| kind != "MUSIC_VIDEO_TYPE_ATV");
     let track = Track {
         id: TrackId::youtube(text(r, "videoId")?),
         title: run_text(items(r, "title.runs")),
-        artists: sub.artists,
+        artists,
         album: sub.album,
         duration: parse_duration(text(r, "lengthText.runs.0.text")?).unwrap_or_default(),
         thumb: thumb(r),
         explicit: explicit(r),
         video,
+        upload: upload(raw),
+        ..Track::default()
     };
     Some(if video { clean_video(track) } else { track })
 }
 
 fn clean_video(mut track: Track) -> Track {
     let uploader = track.artists.first().cloned().unwrap_or_default();
+    track.uploader = Some(Box::new(uploader.clone())).filter(|u| !u.name.is_empty());
     let parsed = title::parse(&track.title, &uploader.name);
     track.title = parsed.title;
     track.artists = parsed
@@ -310,7 +350,6 @@ fn page_link(query: &str) -> Option<Page> {
 
 pub fn video_id(query: &str) -> Option<String> {
     let (host, url) = youtube_url(query)?;
-    let valid = |id: &str| id.len() == 11 && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_');
     let mut segments = url.path_segments()?.filter(|s| !s.is_empty());
     let candidate = match host.as_str() {
         "youtu.be" => segments.next().map(String::from),
@@ -322,7 +361,7 @@ pub fn video_id(query: &str) -> Option<String> {
         }
         _ => None,
     };
-    candidate.filter(|id| valid(id))
+    candidate.filter(|id| valid_id(id))
 }
 
 fn shelf_title(s: &Value) -> &str {
@@ -378,7 +417,7 @@ impl Ytm {
     }
 
     pub fn set_region(&self, code: &str) {
-        *self.region.lock().unwrap() = code.trim().to_uppercase();
+        *self.region.locked() = code.trim().to_uppercase();
     }
 
     fn busy(&self) -> Busy<'_> {
@@ -417,7 +456,7 @@ impl Ytm {
 
     async fn call_once(&self, endpoint: &str, mut body: Value) -> Result<Value> {
         let mut client = json!({"clientName": "WEB_REMIX", "clientVersion": CLIENT_VERSION, "hl": "en"});
-        let region = self.region.lock().unwrap().clone();
+        let region = self.region.locked().clone();
         if !region.is_empty() {
             client["gl"] = json!(region);
         }
@@ -478,7 +517,7 @@ impl Ytm {
             Filter::Albums => Some(ALBUMS_PARAMS),
             Filter::Artists => Some(ARTISTS_PARAMS),
             Filter::Videos => Some(VIDEOS_PARAMS),
-            Filter::All => None,
+            Filter::All | Filter::Playlists => None,
         };
         let mut out = SearchResult::default();
         if let Some(track) = match video_id(q) {
@@ -504,6 +543,13 @@ impl Ytm {
             )?;
             return search_all(&songs, &mixed, &videos);
         }
+        if filter == Filter::Playlists {
+            let (community, featured) = tokio::try_join!(
+                self.search_page(q, Some(COMMUNITY_PLAYLISTS_PARAMS)),
+                self.search_page(q, Some(FEATURED_PLAYLISTS_PARAMS)),
+            )?;
+            return search_playlists(&community, &featured);
+        }
         let page = self.search_page(q, params).await?;
         search_filtered(&page, filter)
     }
@@ -512,6 +558,17 @@ impl Ytm {
         let video_id = video(id)?;
         let watch = self.call("next", json!({"videoId": video_id})).await?;
         Ok(watch_track(&watch, video_id))
+    }
+
+    pub async fn lengths(&self, ids: &[TrackId]) -> Result<HashMap<TrackId, f64>> {
+        let _busy = self.busy();
+        let videos: Vec<&str> = ids.iter().filter_map(|id| video(id).ok()).collect();
+        let mut found = HashMap::new();
+        for chunk in videos.chunks(QUEUE_LENGTHS_AT_ONCE) {
+            let resp = self.call("music/get_queue", json!({"videoIds": chunk})).await?;
+            found.extend(queue_lengths(&resp));
+        }
+        Ok(found)
     }
 
     pub async fn suggest(&self, q: &str) -> Result<Suggestions> {
@@ -691,16 +748,30 @@ fn search_all(songs: &Value, mixed: &Value, videos: &Value) -> Result<SearchResu
     Ok(out)
 }
 
+fn search_playlists(community: &Value, featured: &Value) -> Result<SearchResult> {
+    let (community, featured) =
+        (search_filtered(community, Filter::Playlists)?.playlists, search_filtered(featured, Filter::Playlists)?.playlists);
+    let mut seen = HashSet::new();
+    let mut playlists = Vec::new();
+    for at in (0..community.len().max(featured.len())).step_by(PLAYLIST_RUN) {
+        for list in [&community, &featured] {
+            playlists.extend(list.iter().skip(at).take(PLAYLIST_RUN).filter(|p| seen.insert(p.id.clone())).cloned());
+        }
+    }
+    Ok(SearchResult { playlists, ..SearchResult::default() })
+}
+
 fn top_result(mixed: &Value) -> Option<Hit> {
     let card = sections(mixed, "tabbedSearchResultsRenderer").iter().find_map(|s| s.get("musicCardShelfRenderer"))?;
     let title = run_text(items(card, "title.runs"));
     let to = at(card, "title.runs.0.navigationEndpoint")?;
     let sub = split_sub(items(card, "subtitle.runs"));
     let watch = text(to, "watchEndpoint.videoId");
-    let video = text(to, "watchEndpoint.watchEndpointMusicSupportedConfigs.watchEndpointMusicConfig.musicVideoType")
-        .is_some_and(|kind| kind != "MUSIC_VIDEO_TYPE_ATV");
+    let raw = text(to, &format!("watchEndpoint.{VIDEO_TYPE}"));
+    let video = raw.is_some_and(|kind| kind != "MUSIC_VIDEO_TYPE_ATV");
     match build(&title, watch, text(to, "browseEndpoint.browseId"), sub, card)? {
-        Item::Track(t) if video => Some(Hit::Track(clean_video(Track { video: true, ..t }))),
+        Item::Track(t) if video => Some(Hit::Track(clean_video(Track { video: true, upload: upload(raw), ..t }))),
+        Item::Track(t) => Some(Hit::Track(Track { upload: upload(raw), ..t })),
         item => Some(hit(item)),
     }
 }
@@ -807,6 +878,7 @@ fn artist_page(resp: &Value, id: &str) -> Result<Artist> {
         id: id.into(),
         thumb: thumb_or(header.get("foregroundThumbnail"), &image),
         banner: image,
+        listeners: run_text(items(header, "monthlyListenerCount.runs")),
         subscribers: run_text(items(header, "subscriptionButton.subscribeButtonRenderer.subscriberCountText.runs")),
         description: run_text(items(header, "description.runs")),
         radio: watch_link(header, "startRadioButton"),
@@ -916,6 +988,16 @@ fn watch_link(header: &Value, button: &str) -> Option<Browse> {
     Some(Browse { id: id.into(), params: text(to, "params").unwrap_or_default().into() })
 }
 
+fn queue_lengths(resp: &Value) -> HashMap<TrackId, f64> {
+    let mut panels = Vec::new();
+    collect(resp, "playlistPanelVideoRenderer", &mut panels);
+    panels
+        .into_iter()
+        .filter_map(|r| Some((TrackId::youtube(text(r, "videoId")?), parse_duration(text(r, "lengthText.runs.0.text")?)?)))
+        .filter(|(_, seconds)| *seconds > 0.0)
+        .collect()
+}
+
 fn mix_tracks(resp: &Value) -> Vec<Track> {
     let mut panels = Vec::new();
     collect(resp, "playlistPanelVideoRenderer", &mut panels);
@@ -941,7 +1023,7 @@ fn lyrics_browse_id(watch: &Value) -> Option<&str> {
     tabs.iter().find_map(|t| text(t, "tabRenderer.endpoint.browseEndpoint.browseId").filter(|id| id.starts_with("MPLY")))
 }
 
-fn lyrics_text(page: &Value) -> Option<String> {
+pub(crate) fn lyrics_text(page: &Value) -> Option<String> {
     let lyrics = deep(page, "musicDescriptionShelfRenderer").map(|d| run_text(items(d, "description.runs")));
     lyrics.filter(|l| !l.trim().is_empty())
 }
@@ -963,7 +1045,7 @@ fn home_shelves(resp: &Value) -> Result<Vec<Shelf>> {
                 Item::Playlist(_) => {}
             }
         }
-        if !(shelf.tracks.is_empty() && shelf.albums.is_empty() && shelf.artists.is_empty()) {
+        if !shelf.is_empty() {
             shelves.push(shelf);
         }
     }
@@ -1005,845 +1087,4 @@ fn search_items(resp: &Value) -> Vec<Item> {
         .flat_map(|s| items(s, "contents"))
         .filter_map(entry)
         .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Instant;
-
-    use super::*;
-
-    fn ytm() -> Ytm {
-        Ytm::new(reqwest::Client::new())
-    }
-
-    fn show(t: &Track) -> String {
-        format!("{} | {} | {}s | {} | {:?} | {}", t.id, t.title, t.duration, t.artist_line(), t.album.as_ref().map(|a| &a.name), t.thumb)
-    }
-
-    #[test]
-    fn durations() {
-        assert_eq!(parse_duration("3:45"), Some(225.0));
-        assert_eq!(parse_duration("1:02:03"), Some(3723.0));
-        assert_eq!(parse_duration("2020"), None);
-        assert_eq!(parse_duration("1.2M plays"), None);
-    }
-
-    const ID: &str = "dQw4w9WgXcQ";
-
-    #[test]
-    fn parsed_tracks_carry_the_prefix_and_requests_get_the_bare_id() {
-        let panel = json!({ "videoId": ID, "title": { "runs": [{ "text": "Song" }] }, "lengthText": { "runs": [{ "text": "3:32" }] } });
-        let track = panel_track(&panel).unwrap();
-        assert_eq!(track.id, "yt:dQw4w9WgXcQ");
-        assert_eq!(video(&track.id).unwrap(), ID);
-        assert_eq!(watch_url(&track.id).as_deref(), Some("https://music.youtube.com/watch?v=dQw4w9WgXcQ"));
-        assert!(video(&TrackId::parse("sc:123")).is_err() && watch_url(&TrackId::parse("short")).is_none());
-    }
-
-    #[test]
-    fn links_give_a_video_id() {
-        for link in [
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "https://youtube.com/watch?v=dQw4w9WgXcQ&list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG&index=2",
-            "http://www.youtube.com/watch?feature=share&v=dQw4w9WgXcQ&t=43s",
-            "https://youtu.be/dQw4w9WgXcQ",
-            "https://youtu.be/dQw4w9WgXcQ?si=abcdef&t=10",
-            "https://music.youtube.com/watch?v=dQw4w9WgXcQ&si=xyz",
-            "https://m.youtube.com/watch?v=dQw4w9WgXcQ",
-            "youtube.com/watch?v=dQw4w9WgXcQ",
-            "www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "https://www.youtube.com/shorts/dQw4w9WgXcQ",
-            "https://www.youtube.com/embed/dQw4w9WgXcQ?start=3",
-            "https://www.youtube.com/live/dQw4w9WgXcQ",
-            "  https://youtu.be/dQw4w9WgXcQ  ",
-            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
-        ] {
-            assert_eq!(video_id(link).as_deref(), Some(ID), "{link}");
-        }
-    }
-
-    #[test]
-    fn other_input_is_not_a_link() {
-        for q in [
-            "dQw4w9WgXcQ",
-            "firstlights",
-            "radiohead creep",
-            "https://example.com/watch?v=dQw4w9WgXcQ",
-            "https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG",
-            "https://www.youtube.com/@channel",
-            "https://youtu.be/short",
-            "https://www.youtube.com/watch?v=tooLongToBeAnId",
-            "",
-        ] {
-            assert_eq!(video_id(q), None, "{q}");
-        }
-    }
-
-    #[test]
-    fn links_to_albums_artists_and_playlists_open_their_page() {
-        let page = |kind, id: &str| Some(Page { kind, id: id.into() });
-        for (link, want) in [
-            ("https://music.youtube.com/browse/MPREb_4pL8gzRtw1p", page(Kind::Album, "MPREb_4pL8gzRtw1p")),
-            (
-                "https://music.youtube.com/playlist?list=OLAK5uy_nMr9h2VlS-2PULNz3M3XVXQj_P3C2bqaY&si=x",
-                page(Kind::Album, "OLAK5uy_nMr9h2VlS-2PULNz3M3XVXQj_P3C2bqaY"),
-            ),
-            (
-                "https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG",
-                page(Kind::Playlist, "PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG"),
-            ),
-            ("music.youtube.com/browse/VLPLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG", page(Kind::Playlist, "PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG")),
-            ("https://music.youtube.com/channel/UCiMhD4jzUqG-IgPzUmmytRQ", page(Kind::Artist, "UCiMhD4jzUqG-IgPzUmmytRQ")),
-            ("https://www.youtube.com/channel/UCiMhD4jzUqG-IgPzUmmytRQ/videos", page(Kind::Artist, "UCiMhD4jzUqG-IgPzUmmytRQ")),
-            ("https://music.youtube.com/watch?v=dQw4w9WgXcQ&list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG", None),
-            ("https://www.youtube.com/@channel", None),
-            ("https://example.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG", None),
-            ("https://music.youtube.com/playlist?list=a%22b", None),
-            ("queen", None),
-        ] {
-            assert_eq!(page_link(link), want, "{link}");
-        }
-    }
-
-    #[test]
-    fn share_urls_open_the_same_page() {
-        for (kind, id) in [
-            (Kind::Album, "MPREb_4pL8gzRtw1p"),
-            (Kind::Album, "OLAK5uy_nMr9h2VlS"),
-            (Kind::Artist, "UCiMhD4jzUqG-IgPzUmmytRQ"),
-            (Kind::Playlist, "PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG"),
-        ] {
-            let url = share_url(kind, id).unwrap_or_else(|| panic!("{id}"));
-            assert_eq!(page_link(&url), Some(Page { kind, id: id.into() }), "{url}");
-        }
-        assert_eq!(share_url(Kind::Track, "yt:dQw4w9WgXcQ").as_deref(), Some("https://music.youtube.com/watch?v=dQw4w9WgXcQ"));
-        assert_eq!(share_url(Kind::Track, "dQw4w9WgXcQ").as_deref(), Some("https://music.youtube.com/watch?v=dQw4w9WgXcQ"));
-        for (kind, id) in [(Kind::Track, "sc:1"), (Kind::Artist, "x"), (Kind::Album, ""), (Kind::Playlist, "a/b"), (Kind::Album, "a?b")] {
-            assert_eq!(share_url(kind, id), None, "{id}");
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_videos_filter_and_all_section() {
-        let y = ytm();
-        for q in ["IVOXYGEN", "KEDELA SATURN", "burgos lost cause"] {
-            let r = y.search(q, Filter::Videos).await.unwrap();
-            println!("videos {q:?}: {}", r.videos.len());
-            r.videos.iter().take(6).for_each(|t| println!("  {} | {} | {}", t.id, t.title, t.artist_line()));
-            assert!(!r.videos.is_empty() && r.videos.iter().all(|t| t.video && t.id.video_id().is_some() && !t.title.is_empty()), "{q}");
-            assert!(r.tracks.is_empty());
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-        let all = y.search("phonk drift", Filter::All).await.unwrap();
-        println!("all: tracks={} videos={}", all.tracks.len(), all.videos.len());
-        assert!(!all.tracks.is_empty() && !all.videos.is_empty());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_video_titles_are_split() {
-        let y = ytm();
-        let mut checked = 0;
-        for q in ["phonk drift mix", "KEDELA", "slowed reverb phonk"] {
-            for t in y.search(q, Filter::Videos).await.unwrap().videos {
-                println!("{} | {}", t.title, t.artist_line());
-                assert!(
-                    !t.title.contains("[Wave")
-                        && !t.title.to_lowercase().contains("(official")
-                        && !t.title.to_lowercase().contains("[free"),
-                    "{}",
-                    t.title
-                );
-                assert!(!t.artists.is_empty() && t.artists.iter().all(|a| !a.name.is_empty()));
-                checked += 1;
-            }
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-        assert!(checked >= 10);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_pasted_links_open_the_track() {
-        let y = ytm();
-        let found = y.search("IVOXYGEN", Filter::Videos).await.unwrap().videos;
-        let mut ids = vec![ID.to_string()];
-        ids.extend(found.iter().take(2).filter_map(|t| t.id.video_id().map(String::from)));
-        for id in ids {
-            for link in [
-                format!("https://www.youtube.com/watch?v={id}"),
-                format!("https://youtu.be/{id}"),
-                format!("https://music.youtube.com/watch?v={id}&list=RDAMVM{id}"),
-            ] {
-                for filter in [Filter::All, Filter::Songs] {
-                    let r = y.search(&link, filter).await.unwrap();
-                    let linked = r.linked.unwrap_or_else(|| panic!("no track for {link}"));
-                    println!("{link} -> {} | {} | {}", linked.id, linked.title, linked.artist_line());
-                    assert_eq!(linked.id, TrackId::youtube(&id));
-                    assert!(linked.duration > 0.0 && !linked.title.is_empty());
-                }
-                tokio::time::sleep(Duration::from_millis(700)).await;
-            }
-        }
-        let gone = y.search("https://youtu.be/AAAAAAAAAAA", Filter::All).await.unwrap();
-        assert!(gone.linked.is_none());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_search() {
-        let y = ytm();
-        let t = Instant::now();
-        let r = y.search("daft punk", Filter::All).await.unwrap();
-        println!(
-            "search all {:?}: top={:?} tracks={} albums={} artists={}",
-            t.elapsed(),
-            r.top.is_some(),
-            r.tracks.len(),
-            r.albums.len(),
-            r.artists.len()
-        );
-        r.tracks.iter().take(3).for_each(|t| println!("  {}", show(t)));
-        println!("  {:?}\n  {:?}\n  {:?}", r.top, r.albums.first(), r.artists.first());
-        assert!(r.top.is_some() && !r.tracks.is_empty() && !r.albums.is_empty() && !r.artists.is_empty());
-        for f in [Filter::Songs, Filter::Albums, Filter::Artists] {
-            let t = Instant::now();
-            let r = y.search("radiohead", f).await.unwrap();
-            println!("search {f:?} {:?}: tracks={} albums={} artists={}", t.elapsed(), r.tracks.len(), r.albums.len(), r.artists.len());
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_suggest() {
-        let s = ytm().suggest("radio").await.unwrap();
-        println!("{s:?}");
-        assert!(!s.queries.is_empty());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_album() {
-        let y = ytm();
-        let r = y.search("random access memories", Filter::Albums).await.unwrap();
-        let card = r.albums.first().unwrap();
-        println!("{card:?}");
-        let a = y.album(&card.id).await.unwrap();
-        println!("{} | {:?} | {} | {} | tracks={} thumb={}", a.title, a.artists, a.year, a.kind, a.tracks.len(), a.thumb);
-        a.tracks.iter().take(3).for_each(|t| println!("  {}", show(t)));
-        assert!(a.tracks.len() > 5 && a.tracks.iter().all(|t| !t.thumb.is_empty() && t.album.is_some() && t.duration > 0.0));
-        let resp = y.call("browse", json!({"browseId": a.id})).await.unwrap();
-        let olak = deep(&resp, "playlistId").and_then(Value::as_str).unwrap().to_string();
-        let again = y.album(&olak).await.unwrap();
-        println!("{olak} -> {} {}", again.id, again.tracks.len());
-        assert_eq!(again.id, a.id);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_playlist() {
-        let p = ytm().playlist("PLMC9KNkIncKvYin_USF1qoJQnIyMAfRxl").await.unwrap();
-        println!("{} | {} | {:?} | tracks={}", p.title, p.kind, p.artists, p.tracks.len());
-        p.tracks.iter().take(3).for_each(|t| println!("  {}", show(t)));
-        assert!(!p.tracks.is_empty());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_artist() {
-        let y = ytm();
-        let r = y.search("daft punk", Filter::Artists).await.unwrap();
-        let t = Instant::now();
-        let a = y.artist(&r.artists[0].id).await.unwrap();
-        println!("artist {:?}: {} subs={:?} thumb={} banner={}", t.elapsed(), a.name, a.subscribers, a.thumb, a.banner);
-        println!(
-            "  desc={:.80} top={} albums={} singles={} related={}",
-            a.description,
-            a.top.len(),
-            a.albums.len(),
-            a.singles.len(),
-            a.related.len()
-        );
-        a.top.iter().take(2).for_each(|t| println!("  {}", show(t)));
-        println!("  {:?}", a.albums.first());
-        assert!(!a.top.is_empty() && !a.albums.is_empty() && !a.banner.is_empty());
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_discography() {
-        let y = ytm();
-        for id in ["UCEPMVbUzImPl4p8k4LkGevA", "UCuAXFkgsw1L7xaCfnd5JJOw"] {
-            let a = y.artist(id).await.unwrap();
-            let d = y.discography(&a).await.unwrap();
-            println!("{}: page {}+{}, all {}+{}", a.name, a.albums.len(), a.singles.len(), d.albums.len(), d.singles.len());
-            assert!(d.albums.len() >= a.albums.len() && d.singles.len() >= a.singles.len());
-            assert!(d.albums.iter().chain(&d.singles).all(|c| c.id.starts_with("MPRE") && !c.title.is_empty()));
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_artist_songs_and_long_playlists() {
-        let y = ytm();
-        let a = y.artist("UCEPMVbUzImPl4p8k4LkGevA").await.unwrap();
-        println!("songs list {:?}, top {}", a.songs, a.top.len());
-        if !a.songs.is_empty() {
-            assert!(y.playlist(&a.songs).await.unwrap().tracks.len() >= a.top.len());
-        }
-        let long = y.playlist("PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI").await.unwrap();
-        println!("long playlist: {}", long.tracks.len());
-        assert!(long.tracks.iter().all(|t| t.id.video_id().is_some()));
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_artist_mixes() {
-        let y = ytm();
-        let a = y.artist("UCEPMVbUzImPl4p8k4LkGevA").await.unwrap();
-        for list in [a.radio.as_ref(), a.shuffle.as_ref()].into_iter().flatten() {
-            let tracks = y.mix(list).await.unwrap();
-            println!("{}: {}", list.id, tracks.len());
-            assert!(!tracks.is_empty() && tracks.iter().all(|t| t.id.video_id().is_some()));
-        }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_radio() {
-        let t = Instant::now();
-        let r = ytm().radio(&TrackId::youtube(ID)).await.unwrap();
-        println!("radio {:?}: {}", t.elapsed(), r.len());
-        r.iter().take(3).for_each(|t| println!("  {}", show(t)));
-        assert!(r.len() > 10 && r.iter().all(|t| t.id != TrackId::youtube(ID)));
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_lyrics() {
-        let l = ytm().lyrics(&TrackId::youtube(ID)).await.unwrap().unwrap();
-        println!("{} chars: {:.60}", l.len(), l);
-        assert!(l.contains("Never gonna give you up"));
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_home() {
-        let t = Instant::now();
-        let h = ytm().home().await.unwrap();
-        println!("home {:?}: {} shelves", t.elapsed(), h.len());
-        for s in &h {
-            println!("  {} | tracks={} albums={} artists={}", s.title, s.tracks.len(), s.albums.len(), s.artists.len());
-        }
-        assert!(!h.is_empty());
-    }
-}
-
-#[cfg(test)]
-mod fixtures {
-    use snellar_core::error::Code;
-
-    use super::*;
-
-    fn load(raw: &str) -> Value {
-        serde_json::from_str(raw).unwrap()
-    }
-
-    const SONGS: &str = include_str!("../../../tests/fixtures/youtube/search-songs-queen-2026-11-03.json");
-    const MIXED: &str = include_str!("../../../tests/fixtures/youtube/search-all-queen-2026-11-03.json");
-    const VIDEOS: &str = include_str!("../../../tests/fixtures/youtube/search-videos-queen-2026-11-03.json");
-    const SUGGEST: &str = include_str!("../../../tests/fixtures/youtube/suggest-quee-2026-11-03.json");
-    const NEXT: &str = include_str!("../../../tests/fixtures/youtube/next-dqw4w9wgxcq-2026-11-03.json");
-    const LYRICS: &str = include_str!("../../../tests/fixtures/youtube/lyrics-dqw4w9wgxcq-2026-11-03.json");
-    const RADIO: &str = include_str!("../../../tests/fixtures/youtube/radio-dqw4w9wgxcq-2026-11-03.json");
-    const ARTIST: &str = include_str!("../../../tests/fixtures/youtube/artist-queen-2026-11-03.json");
-    const PLAYLIST: &str = include_str!("../../../tests/fixtures/youtube/playlist-queen-pl2t-2026-11-03.json");
-    const HOME: &str = include_str!("../../../tests/fixtures/youtube/home-2026-11-03.json");
-    const QUEEN: &str = "UCEPMVbUzImPl4p8k4LkGevA";
-    const RICK: &str = "dQw4w9WgXcQ";
-
-    fn playable(t: &Track) -> bool {
-        t.id.video_id().is_some() && !t.title.is_empty() && t.duration > 0.0 && !t.thumb.is_empty()
-    }
-
-    #[test]
-    fn a_reduced_catalog_search_reads_the_top_artist_the_artists_and_the_videos() {
-        let r = search_all(&load(SONGS), &load(MIXED), &load(VIDEOS)).unwrap();
-        let Some(Hit::Artist(top)) = r.top else { panic!("top artist card") };
-        assert_eq!((top.id.as_str(), top.name.as_str()), (QUEEN, "Queen"));
-        assert!(!top.subtitle.is_empty() && top.thumb.ends_with("=w544-h544-l90-rj"), "{top:?}");
-        assert_eq!(r.artists.len(), 6);
-        assert!(r.artists.iter().all(|a| a.id.starts_with("UC") && !a.name.is_empty()), "{:?}", r.artists);
-        assert_eq!(r.videos.len(), 20);
-        assert!(r.videos.iter().all(|v| v.video && playable(v)), "{:?}", r.videos.iter().find(|v| !playable(v)));
-        assert_eq!(r.videos[0].artists.first().map(|a| a.id.as_str()), Some(QUEEN));
-        assert!(r.tracks.is_empty() && r.albums.is_empty(), "the reduced catalog has no songs or albums");
-        assert_eq!(r.playlists.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), ["PLKg5chIaZMD0", "PLP-gn2q7QgG4", "PLZr6N9My42EY"]);
-        let list = &r.playlists[0];
-        assert_eq!((list.title.as_str(), list.kind.as_str()), ("Queen + Paul Rodgers - Return of the Champions", "Playlist"));
-        assert_eq!(list.artists.first().map(|a| a.name.as_str()), Some("Google User"));
-        assert!(r.playlists.iter().all(|p| !p.thumb.is_empty()));
-    }
-
-    const TOP_SONG: &str = include_str!("../../../tests/fixtures/youtube/search-top-song-handmade-2026-11-03.json");
-    const TOP_VIDEO: &str = include_str!("../../../tests/fixtures/youtube/search-top-video-home-2026-11-03.json");
-    const TOP_ALBUM: &str = include_str!("../../../tests/fixtures/youtube/search-top-album-home-2026-11-03.json");
-    const TOP_PLAYLIST: &str = include_str!("../../../tests/fixtures/youtube/search-top-playlist-handmade-2026-11-03.json");
-
-    #[test]
-    fn the_top_result_can_be_a_song_a_video_an_album_or_a_playlist() {
-        let Some(Hit::Track(song)) = top_result(&load(TOP_SONG)) else { panic!("a song") };
-        assert_eq!((song.id.as_str(), song.title.as_str()), ("yt:fJ9rUzIMcZQ", "Bohemian Rhapsody"));
-        assert_eq!((song.duration, song.video), (355.0, false));
-        assert_eq!((song.artist_line(), song.album.map(|a| a.name)), ("Queen".into(), Some("A Night At The Opera".into())));
-        let Some(Hit::Track(video)) = top_result(&load(TOP_VIDEO)) else { panic!("a video") };
-        assert!(video.video);
-        assert_eq!((video.id.as_str(), video.title.as_str(), video.duration), ("yt:dQw4w9WgXcQ", "Never Gonna Give You Up", 214.0));
-        let Some(Hit::Album(album)) = top_result(&load(TOP_ALBUM)) else { panic!("an album") };
-        assert_eq!((album.title.as_str(), album.year.as_str(), album.kind.as_str()), ("A Night At The Opera", "1975", "Album"));
-        let Some(Hit::Playlist(list)) = top_result(&load(TOP_PLAYLIST)) else { panic!("a playlist") };
-        assert_eq!(list.id, "PLqueenGreatestHitsHandmade");
-        let mut broken = load(TOP_SONG);
-        *broken.pointer_mut("/contents/tabbedSearchResultsRenderer/tabs/0/tabRenderer/content/sectionListRenderer/contents/0/musicCardShelfRenderer/title").unwrap() = json!("x");
-        assert!(top_result(&broken).is_none() && top_result(&json!({})).is_none());
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn background_matching_does_not_wait_for_paging_or_for_import() {
-        let long = load(LONG);
-        let next = load(LONG_NEXT);
-        let empty = load(SONGS);
-        let permits = std::sync::Arc::new(tokio::sync::Semaphore::new(0));
-        let gate = crate::fake_music::Gate { when: "continuation", permits: permits.clone() };
-        let music = crate::fake_music::serve(
-            move |body| {
-                if body.get("query").is_some() {
-                    empty.clone()
-                } else if body.get("continuation").is_some() {
-                    next.clone()
-                } else {
-                    long.clone()
-                }
-            },
-            Some(gate),
-        )
-        .await;
-        let ytm = music.ytm.clone();
-        let paging = tokio::spawn({
-            let ytm = ytm.clone();
-            async move { ytm.playlist("PLlong").await }
-        });
-        for _ in 0..400 {
-            if music.seen.lock().unwrap().iter().any(|b| b.get("continuation").is_some()) {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        assert!(music.seen.lock().unwrap().iter().any(|b| b.get("continuation").is_some()), "paging began");
-        let started = std::time::Instant::now();
-        let quiet = tokio::time::timeout(Duration::from_secs(3), ytm.search_quiet("x", Filter::Songs)).await;
-        assert!(quiet.is_ok_and(|r| r.is_ok()), "a quiet search waited {:?} behind paging", started.elapsed());
-        permits.add_permits(100);
-        assert!(paging.await.unwrap().unwrap().tracks.len() > 100, "paging still reads every page");
-
-        let held = std::sync::Arc::new(tokio::sync::Semaphore::new(0));
-        let gate = crate::fake_music::Gate { when: "import me", permits: held.clone() };
-        let quiet_answer = load(SONGS);
-        let music = crate::fake_music::serve(move |_| quiet_answer.clone(), Some(gate)).await;
-        let ytm = music.ytm.clone();
-        let importing = tokio::spawn({
-            let ytm = ytm.clone();
-            async move { ytm.search_background("import me", Filter::Songs).await }
-        });
-        for _ in 0..400 {
-            if !music.seen.lock().unwrap().is_empty() {
-                break;
-            }
-            tokio::time::sleep(Duration::from_millis(5)).await;
-        }
-        let quiet = tokio::time::timeout(Duration::from_secs(3), ytm.search_quiet("other", Filter::Songs)).await;
-        assert!(quiet.is_ok_and(|r| r.is_ok()), "a quiet search waited behind an import search");
-        held.add_permits(1);
-        importing.await.unwrap().unwrap();
-    }
-
-    #[test]
-    fn a_row_with_only_a_watch_link_is_a_hit_in_suggestions_and_nothing_in_lists() {
-        let row = json!({"musicResponsiveListItemRenderer": {
-            "flexColumns": [{"musicResponsiveListItemFlexColumnRenderer": {"text": {"runs": [{"text": "A clip"}]}}}],
-            "navigationEndpoint": {"watchEndpoint": {"videoId": "dQw4w9WgXcQ"}}
-        }});
-        assert!(entry(&row).is_none(), "track parsing that feeds recommendations reads playlistItemData only");
-        let answer = json!({"contents": [{"searchSuggestionsSectionRenderer": {"contents": [row]}}]});
-        assert!(matches!(&suggestions(&answer).hits[..], [Hit::Track(t)] if t.title == "A clip"));
-    }
-
-    #[test]
-    fn a_search_with_no_results_is_empty_not_an_error() {
-        let r = search_filtered(&load(SONGS), Filter::Songs).unwrap();
-        assert!(r.tracks.is_empty() && r.albums.is_empty() && r.artists.is_empty() && r.videos.is_empty() && r.top.is_none());
-    }
-
-    #[test]
-    fn an_answer_of_an_unknown_shape_is_a_parse_error_not_an_empty_list() {
-        let parse = |e: anyhow::Error| Code::of(&e) == Code::YtParse;
-        let unknown = json!({"contents": {"somethingNewRenderer": {"tabs": []}}});
-        assert!(search_filtered(&unknown, Filter::Songs).is_err_and(parse));
-        assert!(search_filtered(&unknown, Filter::Videos).is_err_and(parse));
-        assert!(search_all(&unknown, &load(MIXED), &load(VIDEOS)).is_err_and(parse));
-        let renamed = json!({"contents": {"tabbedSearchResultsRenderer": {"tabs": [{"tabRenderer": {"content": {"sectionListRenderer": {"contents": [{"musicResultsV2Renderer": {}}]}}}}]}}});
-        assert!(search_filtered(&renamed, Filter::Songs).is_err_and(parse), "sections nobody can read are not no results");
-        assert!(radio_tracks(&unknown, &TrackId::youtube("dQw4w9WgXcQ")).is_err_and(parse));
-        assert!(home_shelves(&unknown).is_err_and(parse));
-    }
-
-    #[test]
-    fn discography_keeps_the_albums_shown_when_the_full_list_comes_back_empty() {
-        let card = |id: &str| AlbumCard { id: id.into(), ..AlbumCard::default() };
-        let shown = [card("MPREa"), card("MPREb")];
-        let by = Ref { id: "UCx".into(), name: "x".into() };
-        assert_eq!(discography_page(&json!({"contents": {"somethingNew": {}}}), &by).0.len(), 0);
-        assert_eq!(full_or_shown(Vec::new(), &shown).len(), 2);
-        assert_eq!(
-            full_or_shown(vec![card("MPREc"), card("MPREc"), card("MPREa")], &shown).len(),
-            2,
-            "a real full list wins, without repeats"
-        );
-    }
-
-    const HOME_SONGS: &str = include_str!("../../../tests/fixtures/youtube/search-songs-home-queen-2026-11-03.json");
-    const HOME_MIXED: &str = include_str!("../../../tests/fixtures/youtube/search-all-home-queen-2026-11-03.json");
-    const HOME_VIDEOS: &str = include_str!("../../../tests/fixtures/youtube/search-videos-home-queen-2026-11-03.json");
-
-    #[test]
-    fn a_home_connection_search_has_songs_albums_artists_videos_and_lists() {
-        let r = search_all(&load(HOME_SONGS), &load(HOME_MIXED), &load(HOME_VIDEOS)).unwrap();
-        assert!(matches!(&r.top, Some(Hit::Artist(a)) if a.id == QUEEN), "{:?}", r.top);
-        assert_eq!((r.tracks.len(), r.albums.len(), r.artists.len(), r.videos.len(), r.playlists.len()), (20, 3, 6, 20, 6));
-        assert!(r.tracks.iter().all(playable), "{:?}", r.tracks.iter().find(|t| !playable(t)));
-        assert!(r.tracks.iter().all(|t| !t.artists.is_empty() && !t.video));
-        assert!(r.albums.iter().all(|a| a.id.starts_with("MPRE") && a.year.len() == 4 && !a.artists.is_empty()), "{:?}", r.albums);
-        assert!(r.artists.iter().all(|a| a.id.starts_with("UC") && !a.name.is_empty()));
-        assert!(r.videos.iter().all(|v| v.video && !v.title.is_empty()));
-        let songs = search_filtered(&load(HOME_SONGS), Filter::Songs).unwrap();
-        assert_eq!(songs.tracks.len(), 20);
-    }
-
-    #[test]
-    fn suggestions_keep_their_order() {
-        let s = suggestions(&load(SUGGEST));
-        assert_eq!(s.queries.len(), 13);
-        assert_eq!(&s.queries[..3], ["queen", "queencard", "trap queen"]);
-        assert!(s.hits.is_empty(), "the reduced catalog has no second section");
-    }
-
-    const HOME_SUGGEST: &str = include_str!("../../../tests/fixtures/youtube/suggest-home-quee-2026-11-03.json");
-
-    #[test]
-    fn suggestions_carry_artists_albums_and_songs() {
-        let s = suggestions(&load(HOME_SUGGEST));
-        assert_eq!(&s.queries[..2], ["queen", "queens of the stone age"]);
-        let kinds: Vec<&str> = s
-            .hits
-            .iter()
-            .map(|h| match h {
-                Hit::Artist(a) => a.id.as_str(),
-                Hit::Album(a) | Hit::Playlist(a) => a.id.as_str(),
-                Hit::Track(t) => t.id.as_str(),
-            })
-            .collect();
-        assert_eq!(kinds, [QUEEN, "UCcYgNw9ne8v1cxcAD_sIOWQ", "MPREb_m2xZZHGzRl1", "UC6ghsPzRFFa6WMxaavyYb6w", "yt:v_gO_P8gug8"]);
-        let Hit::Album(album) = &s.hits[2] else { panic!("an album") };
-        assert_eq!((album.year.as_str(), album.kind.as_str()), ("2018", "Album"));
-        let Hit::Track(song) = &s.hits[4] else { panic!("a song") };
-        assert_eq!((song.album.as_ref().map(|a| a.name.as_str()), song.duration), (Some("I feel"), 0.0), "a suggestion row has no length");
-        let json = serde_json::to_value(&s.hits).unwrap();
-        let types: Vec<&str> = json.as_array().unwrap().iter().map(|h| h["type"].as_str().unwrap()).collect();
-        assert_eq!(types, ["artist", "artist", "album", "artist", "track"]);
-        assert_eq!(json[2]["kind"], "Album", "the album keeps its own kind next to the type");
-        let broken = json!([{}, 4, {"musicResponsiveListItemRenderer": {}}]);
-        assert!(suggestions(&json!({"contents": [{"searchSuggestionsSectionRenderer": {"contents": broken}}]})).hits.is_empty());
-    }
-
-    #[test]
-    fn the_watch_page_gives_the_asked_track_and_its_lyrics_tab() {
-        let watch = load(NEXT);
-        let t = watch_track(&watch, RICK).expect("the track");
-        assert_eq!((t.id.as_str(), t.title.as_str(), t.duration), ("yt:dQw4w9WgXcQ", "Never Gonna Give You Up", 214.0));
-        assert_eq!(t.artists.first().map(|a| (a.id.as_str(), a.name.as_str())), Some(("UCwZEU0wAwIyZb4x5G_KJp2w", "Rick Astley")));
-        assert!(watch_track(&watch, "aaaaaaaaaaa").is_none());
-        assert_eq!(lyrics_browse_id(&watch), Some("MPLYt_6AEOVn4k62q"));
-        let lyrics = lyrics_text(&load(LYRICS)).expect("lyrics");
-        assert!(lyrics.starts_with("We're no strangers to love\n") && lyrics.lines().count() > 20, "{lyrics:.80}");
-    }
-
-    #[test]
-    fn radio_leaves_out_its_seed() {
-        let seed = TrackId::youtube(RICK);
-        let radio = radio_tracks(&load(RADIO), &seed).unwrap();
-        assert_eq!(radio.len(), 49);
-        assert!(radio.iter().all(|t| t.id != seed && playable(t)), "{:?}", radio.iter().find(|t| !playable(t)));
-    }
-
-    #[test]
-    fn an_artist_page_reads_its_header_even_without_shelves() {
-        let a = artist_page(&load(ARTIST), QUEEN).unwrap();
-        assert_eq!((a.id.as_str(), a.name.as_str(), a.subscribers.as_str()), (QUEEN, "Queen", "19.1M"));
-        assert!(!a.thumb.is_empty() && !a.banner.is_empty());
-        assert!(a.description.starts_with("Queen are a British rock band"), "{:.60}", a.description);
-        assert!(a.albums.is_empty() && a.singles.is_empty() && a.top.is_empty(), "the reduced catalog has no music shelves");
-        assert_eq!(Code::of(&artist_page(&json!({}), QUEEN).unwrap_err()), Code::YtParse);
-    }
-
-    #[test]
-    fn a_playlist_page_reads_its_header_and_tracks() {
-        let (p, next) = playlist_page(&load(PLAYLIST), "PL2tMgWgIvcWkMsdZGTqrmPTpTPYjPTfuw").unwrap();
-        assert_eq!(next, None, "the related playlists below the list are not more of it");
-        assert_eq!((p.title.as_str(), p.kind.as_str()), ("Queen Live Performances", "playlist"));
-        assert_eq!(p.tracks.len(), 37);
-        assert!(p.tracks.iter().all(playable), "{:?}", p.tracks.iter().find(|t| !playable(t)));
-        assert_eq!(Code::of(&album_page(&json!({}), "MPREb_x".into()).unwrap_err()), Code::YtParse);
-    }
-
-    const ARTIST_FULL: &str = include_str!("../../../tests/fixtures/youtube/artist-home-queen-2026-11-03.json");
-    const ALBUMS_FULL: &str = include_str!("../../../tests/fixtures/youtube/discography-home-queen-albums-2026-11-03.json");
-    const SINGLES: &str = include_str!("../../../tests/fixtures/youtube/discography-home-queen-singles-2026-11-03.json");
-    const OPERA: &str = include_str!("../../../tests/fixtures/youtube/album-home-opera-2026-11-03.json");
-    const UPCOMING: &str = include_str!("../../../tests/fixtures/youtube/album-home-upcoming-2026-11-03.json");
-    const HOME_FULL: &str = include_str!("../../../tests/fixtures/youtube/home-home-2026-11-03.json");
-    const CAIRO: &str = include_str!("../../../tests/fixtures/youtube/next-qcuhgxfs-ym-2026-11-03.json");
-
-    const SECTIONS: &str = "/contents/singleColumnBrowseResultsRenderer/tabs/0/tabRenderer/content/sectionListRenderer/contents";
-
-    fn queen() -> Ref {
-        Ref { id: QUEEN.into(), name: "Queen".into() }
-    }
-
-    #[test]
-    fn a_full_artist_page_links_to_its_whole_discography() {
-        let a = artist_page(&load(ARTIST_FULL), QUEEN).unwrap();
-        assert_eq!((a.albums.len(), a.singles.len(), a.top.len(), a.related.len()), (10, 10, 5, 10));
-        let albums = a.more_albums.expect("albums link");
-        let singles = a.more_singles.expect("singles link");
-        assert_eq!(albums.id, format!("MPAD{QUEEN}"));
-        assert_ne!(albums.params, singles.params);
-        assert!(a.albums.iter().all(|c| c.artists == [queen()] && c.id.starts_with("MPRE")), "{:?}", a.albums[0]);
-    }
-
-    #[test]
-    fn the_discography_of_a_home_connection_is_one_whole_page() {
-        let (albums, next) = discography_page(&load(ALBUMS_FULL), &queen());
-        assert_eq!((albums.len(), next), (57, None), "no continuation, unlike the page the cloud session guessed");
-        assert_eq!(albums.iter().map(|a| &a.id).collect::<HashSet<_>>().len(), 57);
-        assert!(albums.iter().all(|a| a.kind == "Album" && a.year.len() == 4 && a.artists == [queen()] && !a.thumb.is_empty()));
-
-        let (singles, next) = discography_page(&load(SINGLES), &queen());
-        assert_eq!((singles.len(), next), (24, None));
-        assert!(singles.iter().all(|s| (s.kind == "Single" || s.kind == "EP") && s.id.starts_with("MPRE")), "{:?}", singles[0]);
-    }
-
-    #[test]
-    fn a_grid_with_a_token_continues_and_its_next_page_is_read() {
-        let row = |id: &str| {
-            json!({"musicTwoRowItemRenderer": {
-                "title": {"runs": [{"text": "x"}]},
-                "navigationEndpoint": {"browseEndpoint": {"browseId": id}}
-            }})
-        };
-        let page = json!({"grid": {"gridRenderer": {"items": [row("MPREa")], "continuations": [{"nextContinuationData": {"continuation": "t2"}}]}}});
-        let (first, next) = discography_page(&page, &queen());
-        assert_eq!((first.len(), next.as_deref()), (1, Some("t2")));
-        let rest = json!({"continuationContents": {"gridContinuation": {"items": [row("MPREb")]}}});
-        let (list, more) = continued(&rest);
-        assert_eq!((cards(list, &queen()).len(), more), (1, None));
-    }
-
-    #[test]
-    fn a_real_album_page_has_timed_tracks_and_an_upcoming_one_is_still_an_album() {
-        let opera = album_page(&load(OPERA), "MPREb_eEpQf8QskKl".into()).unwrap();
-        assert_eq!(
-            (opera.title.as_str(), opera.year.as_str(), opera.kind.as_str(), opera.tracks.len()),
-            ("A Night At The Opera", "1975", "Album", 12)
-        );
-        assert!(opera.tracks.iter().all(playable) && opera.tracks.iter().all(|t| t.album.is_some() && !t.artists.is_empty()));
-        let upcoming = album_page(&load(UPCOMING), "MPREb_gEXfEPkLxFU".into()).unwrap();
-        assert_eq!((upcoming.kind.as_str(), upcoming.year.as_str()), ("Album", "2026"), "the header says Upcoming Album");
-        assert_eq!(upcoming.tracks.len(), 27);
-    }
-
-    #[test]
-    fn home_rows_and_top_songs_carry_no_length_while_the_watch_page_does() {
-        let home = home_shelves(&load(HOME_FULL)).unwrap();
-        assert_eq!((home.len(), home[0].title.as_str(), home[0].tracks.len()), (1, "Quick picks", 20));
-        assert!(
-            home[0].tracks.iter().all(|t| t.duration == 0.0 && t.id.video_id().is_some() && !t.title.is_empty()),
-            "these rows have no length column"
-        );
-        let top = artist_page(&load(ARTIST_FULL), QUEEN).unwrap().top;
-        assert!(top.iter().all(|t| t.duration == 0.0 && t.album.is_some()), "plays and album, no length");
-        let cairo = watch_track(&load(CAIRO), "QCUHgXfs_YM").expect("the track");
-        assert_eq!((cairo.title.as_str(), cairo.duration), ("Cairo FM", 182.0));
-    }
-
-    #[test]
-    fn every_length_a_saved_response_holds_is_understood() {
-        fn walk(v: &Value, found: &mut Vec<String>) {
-            match v {
-                Value::Array(list) => list.iter().for_each(|x| walk(x, found)),
-                Value::Object(map) => {
-                    found.extend(text(v, "lengthText.runs.0.text").map(str::to_string));
-                    found.extend(
-                        text(v, "musicResponsiveListItemFixedColumnRenderer.text.runs.0.text")
-                            .filter(|t| t.contains(':'))
-                            .map(str::to_string),
-                    );
-                    map.values().for_each(|x| walk(x, found));
-                }
-                _ => {}
-            }
-        }
-        let mut found = Vec::new();
-        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/fixtures/youtube");
-        for file in std::fs::read_dir(dir).unwrap().flatten() {
-            walk(&serde_json::from_slice(&std::fs::read(file.path()).unwrap()).unwrap(), &mut found);
-        }
-        assert!(found.len() > 300, "{}", found.len());
-        let lost: Vec<&String> = found.iter().filter(|t| parse_duration(t).is_none_or(|d| d <= 0.0)).collect();
-        assert!(lost.is_empty(), "{lost:?}");
-    }
-
-    #[test]
-    fn a_broken_discography_page_is_never_a_panic() {
-        assert_eq!(discography_page(&json!({}), &queen()).0.len(), 0);
-        assert_eq!(continued(&json!({"continuationContents": {"gridContinuation": 3}})).0.len(), 0);
-        assert_eq!(continued(&json!({"onResponseReceivedActions": [{}]})).1, None);
-        let mut page = load(ALBUMS_FULL);
-        let grid = page.pointer_mut(&format!("{SECTIONS}/0/gridRenderer")).unwrap();
-        let list = grid["items"].as_array_mut().unwrap();
-        list[0]["musicTwoRowItemRenderer"].as_object_mut().unwrap().remove("title");
-        list[1]["musicTwoRowItemRenderer"].as_object_mut().unwrap().remove("subtitle");
-        list[2]["musicTwoRowItemRenderer"].as_object_mut().unwrap().remove("navigationEndpoint");
-        list[3]["musicTwoRowItemRenderer"].as_object_mut().unwrap().remove("thumbnailRenderer");
-        list[4] = json!({"musicTwoRowItemRenderer": null});
-        list[5] = json!("nonsense");
-        grid["continuations"] = json!([{"nextContinuationData": {"continuation": 7}}]);
-        let (cards, next) = discography_page(&page, &queen());
-        assert_eq!((cards.len(), next), (57 - 4, None));
-        assert!(cards.iter().any(|c| c.year.is_empty() && c.kind == "Album"), "a card without a subtitle is still an album");
-    }
-
-    const LONG: &str = include_str!("../../../tests/fixtures/youtube/playlist-long-2026-11-03.json");
-    const LONG_NEXT: &str = include_str!("../../../tests/fixtures/youtube/playlist-long-next-2026-11-03.json");
-
-    #[test]
-    fn a_long_playlist_continues_past_its_first_hundred() {
-        let (p, next) = playlist_page(&load(LONG), "PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI").unwrap();
-        assert_eq!(p.tracks.len(), 100);
-        let rest = load(LONG_NEXT);
-        let (list, more) = continued(&rest);
-        let tail = tracks_in(list);
-        assert!(next.is_some_and(|t| t.len() > 20) && more.is_none());
-        assert_eq!(tail.len(), 82);
-        assert!(p.tracks.iter().chain(&tail).all(|t| t.id.video_id().is_some() && !t.title.is_empty()));
-    }
-
-    #[test]
-    fn the_top_songs_link_to_the_whole_list() {
-        let a = artist_page(&load(ARTIST_FULL), QUEEN).unwrap();
-        assert_eq!(a.songs, "OLAK5uy_k1shthGfZd9raDVyW94KdQI-Mv1zbvGsQ");
-        assert_eq!(a.top[0].title, "Bohemian Rhapsody");
-        assert!(artist_page(&load(ARTIST), QUEEN).unwrap().songs.is_empty());
-        let mut page = load(ARTIST_FULL);
-        let shelf = page.pointer_mut(&format!("{SECTIONS}/0/musicShelfRenderer")).unwrap().as_object_mut().unwrap();
-        shelf.remove("bottomEndpoint");
-        assert_eq!(artist_page(&page, QUEEN).unwrap().songs, "OLAK5uy_k1shthGfZd9raDVyW94KdQI-Mv1zbvGsQ", "the title links too");
-        *page.pointer_mut(&format!("{SECTIONS}/0/musicShelfRenderer/title")).unwrap() = Value::Null;
-        assert!(artist_page(&page, QUEEN).unwrap().songs.is_empty());
-    }
-
-    const ARTIST_RADIO: &str = include_str!("../../../tests/fixtures/youtube/artist-radio-queen-2026-11-03.json");
-    const ARTIST_SHUFFLE: &str = include_str!("../../../tests/fixtures/youtube/artist-shuffle-queen-2026-11-03.json");
-
-    #[test]
-    fn the_artist_header_gives_its_own_radio_and_shuffle() {
-        let a = artist_page(&load(ARTIST), QUEEN).unwrap();
-        assert_eq!(a.radio, Some(Browse { id: "RDEMbHaAxpOZhcVmmF6I3y0siA".into(), params: "wAEB".into() }));
-        assert_eq!(a.shuffle, Some(Browse { id: "RDAObHaAxpOZhcVmmF6I3y0siA".into(), params: "wAEB8gECGAE%3D".into() }));
-        let home = artist_page(&load(ARTIST_FULL), QUEEN).unwrap();
-        assert_eq!(home.radio.map(|r| r.id), Some("RDEMbHaAxpOZhcVmmF6I3y0siA".into()), "a home connection links with watchEndpoint");
-        assert!(home.shuffle.is_some());
-        let radio = mix_tracks(&load(ARTIST_RADIO));
-        let shuffle = mix_tracks(&load(ARTIST_SHUFFLE));
-        assert_eq!((radio.len(), shuffle.len()), (3, 2), "the reduced catalog is short; a home connection gives about 50");
-        assert!(radio.iter().chain(&shuffle).all(|t| t.id.video_id().is_some() && !t.title.is_empty() && t.duration > 0.0));
-        let header = json!({"title": {"runs": [{"text": "Queen"}]}, "startRadioButton": {"buttonRenderer": {}}});
-        let bare = artist_page(&json!({"header": {"musicImmersiveHeaderRenderer": header}}), QUEEN).unwrap();
-        assert!(bare.radio.is_none() && bare.shuffle.is_none());
-        assert!(mix_tracks(&json!({})).is_empty());
-    }
-
-    #[test]
-    fn a_small_artist_without_a_more_button_has_no_link() {
-        let mut page = load(ARTIST_FULL);
-        let sections = page.pointer_mut(SECTIONS).unwrap();
-        let header = sections[1].pointer_mut("/musicCarouselShelfRenderer/header/musicCarouselShelfBasicHeaderRenderer").unwrap();
-        header.as_object_mut().unwrap().remove("moreContentButton");
-        header["title"]["runs"][0].as_object_mut().unwrap().remove("navigationEndpoint");
-        let a = artist_page(&page, QUEEN).unwrap();
-        assert!(a.more_albums.is_none() && a.more_singles.is_some());
-        assert_eq!(a.albums.len(), 10);
-    }
-
-    fn empty_home() -> Value {
-        json!({"contents": {"singleColumnBrowseResultsRenderer": {"tabs": [{"tabRenderer": {"content": {"sectionListRenderer": {"contents": []}}}}]}}})
-    }
-
-    async fn home_asked(answers: Vec<Value>) -> (Vec<Shelf>, usize) {
-        let asked = AtomicUsize::new(0);
-        let music = crate::fake_music::serve(
-            move |body| {
-                assert_eq!(body["browseId"], "FEmusic_home");
-                let n = asked.fetch_add(1, Ordering::Relaxed);
-                answers[n.min(answers.len() - 1)].clone()
-            },
-            None,
-        )
-        .await;
-        let shelves = music.ytm.home().await.unwrap();
-        let requests = music.seen.lock().unwrap().len();
-        (shelves, requests)
-    }
-
-    #[tokio::test]
-    async fn an_empty_home_is_asked_for_once_more() {
-        let (shelves, requests) = home_asked(vec![empty_home(), load(HOME_FULL)]).await;
-        assert!(!shelves.is_empty(), "the second answer is used");
-        assert_eq!(requests, 2);
-    }
-
-    #[tokio::test]
-    async fn a_home_that_stays_empty_is_asked_for_only_twice() {
-        let (shelves, requests) = home_asked(vec![empty_home()]).await;
-        assert!(shelves.is_empty());
-        assert_eq!(requests, 2);
-    }
-
-    #[tokio::test]
-    async fn a_full_home_is_asked_for_once() {
-        let (shelves, requests) = home_asked(vec![load(HOME_FULL)]).await;
-        assert!(!shelves.is_empty());
-        assert_eq!(requests, 1);
-    }
-
-    #[test]
-    fn home_drops_shelves_with_nothing_playable() {
-        let page = load(HOME);
-        let mut cards = Vec::new();
-        collect(&page, "musicTwoRowItemRenderer", &mut cards);
-        assert_eq!(cards.len(), 15, "the capture has one podcast shelf");
-        assert!(home_shelves(&page).unwrap().is_empty());
-    }
 }

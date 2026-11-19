@@ -18,19 +18,45 @@ QtObject {
     property bool waiting: false
     property int serial: 0
     property int tries: 0
+    property bool seeded: false
+    property bool own: false
+    property var raw
+
+    onDataChanged: raw = undefined
+
+    function known() {
+        if (raw === undefined) raw = JSON.stringify(data)
+        return raw
+    }
+
+    function seed(over) {
+        if ((data && !over) || !ready || !method) return false
+        const text = {}
+        const kept = Api.peek(method, args, text)
+        if (kept === undefined) return false
+        data = kept
+        raw = text.raw
+        seeded = true
+        own = true
+        return true
+    }
 
     function reload(quiet) {
         if (!ready || !method) return
         later.stop()
         const mine = ++fetch.serial
+        const kept = fetch.seed() || fetch.seeded
+        fetch.seeded = false
         if (!quiet) {
             fetch.tries = 0
             fetch.retrying = false
-            fetch.loading = true
             fetch.code = ""
-            patience.restart()
+            if (!kept) {
+                fetch.loading = true
+                patience.restart()
+            }
         }
-        Api.call(method, args, (v, e, code, after) => {
+        Api.call(method, args, (v, e, code, after, text) => {
             if (!fetch || mine !== fetch.serial) return
             fetch.loading = false
             fetch.waiting = false
@@ -42,7 +68,12 @@ QtObject {
             } else {
                 const back = Api.stranded.indexOf(fetch) >= 0
                 fetch.code = ""
-                fetch.data = v
+                fetch.own = true
+                const reply = text !== undefined ? text : JSON.stringify(v)
+                if (!fetch.data || reply !== fetch.known()) {
+                    fetch.data = v
+                    fetch.raw = reply
+                }
                 Api.strand(fetch, fetch.offline)
                 if (back) Api.retry()
                 fetch.plan(v && v.retryAfter)
@@ -82,11 +113,20 @@ QtObject {
     }
 
     onArgsChanged: {
-        if (!keepStale) data = null
+        if (!seed(true)) {
+            own = false
+            if (!keepStale) data = null
+        }
         Qt.callLater(reload)
     }
-    onReadyChanged: Qt.callLater(reload)
-    Component.onCompleted: Qt.callLater(reload)
+    onReadyChanged: {
+        seed()
+        Qt.callLater(reload)
+    }
+    Component.onCompleted: {
+        seed()
+        Qt.callLater(reload)
+    }
     Component.onDestruction: Api.strand(fetch, false)
 
     property Connections link: Connections {

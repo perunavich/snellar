@@ -8,23 +8,40 @@ Rectangle {
     property bool primary: false
     property bool danger: false
     property real textLimit: Infinity
+    readonly property bool hovered: area.containsMouse
+    readonly property bool pressed: area.pressed
+    readonly property real visualScale: lens.value
     readonly property color ink: primary ? Theme.accentInk : (danger ? Theme.white : Theme.text)
+    property color tint: ink
     signal clicked()
+
+    activeFocusOnTab: visible && enabled
+    Keys.onReturnPressed: clicked()
+    Keys.onEnterPressed: clicked()
 
     implicitWidth: Theme.snap(content.width + 2 * Theme.pillPadding)
     implicitHeight: Theme.controlLg
     radius: height / 2
-    color: primary ? Theme.accent : (danger ? Theme.red : Theme.fillRaised)
-    scale: area.pressed ? 0.95 : 1
-    Behavior on scale { NumberAnimation { duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+    opacity: enabled ? 1 : Theme.disabledOpacity
+    color: primary ? Theme.accent : (danger ? Theme.danger : Theme.fillRaised)
+    scale: lens.value
+
+    PressLens {
+        id: lens
+        down: area.pressed
+        w: pill.width
+        h: pill.height
+    }
 
     Rectangle {
         anchors.fill: parent
         radius: parent.radius
         color: pill.ink
-        opacity: area.pressed ? 0.14 : area.containsMouse ? 0.08 : 0
+        opacity: area.pressed ? Theme.fillPress.a : area.containsMouse ? Theme.fillHover.a : 0
         Behavior on opacity { NumberAnimation { duration: Theme.hover } }
     }
+
+    FocusRing { target: pill; radius: pill.radius }
 
     Row {
         id: content
@@ -36,7 +53,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             name: pill.icon
             size: Theme.iconSm
-            color: pill.ink
+            color: pill.tint
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -53,7 +70,6 @@ Rectangle {
         id: area
         anchors.fill: parent
         hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
         onClicked: pill.clicked()
     }
 }

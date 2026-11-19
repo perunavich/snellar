@@ -6,6 +6,7 @@ import Snellar
 ListView {
     id: list
     property int dropIndex: -1
+    property real dropEdge: 0
     property Item held: null
     property real pointerY: 0
     property real grabY: 0
@@ -22,6 +23,7 @@ ListView {
         const slot = held.parent
         held.y = pointerY + contentY - grabY - slot.y
         dropIndex = target(slot.y + held.y)
+        dropEdge = dropIndex * rowHeight + (dropIndex * rowHeight > slot.y ? rowHeight : 0)
     }
 
     function follow() {
@@ -71,7 +73,7 @@ ListView {
     Rectangle {
         visible: list.dropIndex >= 0
         z: 5
-        y: list.dropIndex * list.rowHeight - list.contentY - 1
+        y: list.dropEdge - list.contentY - 1
         width: list.width
         height: Theme.ring
         radius: Theme.ring / 2
@@ -85,31 +87,40 @@ ListView {
         readonly property bool failed: !!Api.failure && Api.failure.tracks[modelData.id] !== undefined
         width: list.width
         height: list.rowHeight
+        z: list.held === lift ? 4 : 0
 
         Item {
             id: lift
             width: parent.width
             height: parent.height
-            z: list.held === lift ? 10 : 0
             Component.onDestruction: {
                 if (list.held !== lift) return
                 list.dropIndex = -1
                 list.held = null
             }
-            opacity: slot.index < Api.cursor ? 0.55 : 1
+            opacity: slot.index < Api.cursor && list.held !== lift ? Theme.playedOpacity : 1
 
             Rectangle {
                 anchors.fill: parent
-                radius: Theme.rMd
-                color: Theme.fillPress
+                radius: Theme.rRow
+                color: Theme.menu
+                border.width: 1
+                border.color: Theme.hairline
                 visible: list.held === lift && list.dragging
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: Theme.fillPress
+                }
             }
 
             Item {
                 id: handle
+                z: 1
                 width: Theme.gripWidth
                 height: parent.height
-                Icon { anchors.centerIn: parent; name: slot.failed ? "alert" : "grip"; size: Theme.iconSm; color: slot.failed ? Theme.red : Theme.text3 }
+                Icon { x: Theme.spaceSm; anchors.verticalCenter: parent.verticalCenter; name: slot.failed ? "alert" : "grip"; size: Theme.iconSm; color: slot.failed ? Theme.red : Theme.text3 }
                 MouseArea {
                     id: grip
                     anchors.fill: parent
@@ -142,13 +153,12 @@ ListView {
             }
 
             TrackRow {
-                anchors { left: handle.right; right: parent.right }
+                anchors.fill: parent
+                leadInset: Theme.gripWidth
                 track: slot.modelData
                 list: Api.queue
                 rank: slot.index
-                removable: true
                 inQueue: true
-                onRemoveRequested: Api.call("removeQueued", { index: slot.index, id: slot.modelData.id })
             }
         }
     }

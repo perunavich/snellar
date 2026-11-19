@@ -4,38 +4,19 @@ import Snellar
 Column {
     id: state
     required property Fetch fetch
+    property bool compact: !!fetch.data && fetch.own
     readonly property bool failed: fetch.code.length > 0
-    visible: failed || fetch.waiting
-    spacing: Theme.spaceMd
+    visible: failed || (fetch.waiting && !compact)
 
-    Icon {
-        anchors.horizontalCenter: parent.horizontalCenter
-        name: state.fetch.waiting ? "refresh" : (state.fetch.offline ? "offline" : "alert")
-        size: Theme.iconXl
-        color: Theme.text3
-    }
-    Text {
+    StaleNote { width: parent.width; fetch: state.fetch; visible: state.compact }
+    EmptyState {
         width: parent.width
-        horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.WordWrap
+        visible: !state.compact
+        icon: state.fetch.waiting ? "refresh" : (state.fetch.offline && state.fetch.failure !== "net.youtube_blocked" ? "offline" : "alert")
         text: state.fetch.waiting ? qsTr("Still waiting for an answer") : Errors.text(state.fetch.code)
-        color: Theme.text
-        font.pixelSize: Theme.fsHeadline
-        font.weight: Font.DemiBold
-    }
-    Text {
-        width: parent.width
-        horizontalAlignment: Text.AlignHCenter
-        wrapMode: Text.WordWrap
-        visible: state.failed && (state.fetch.offline || state.fetch.retrying)
-        text: state.fetch.offline ? qsTr("Snellar will try again when the connection is back") : qsTr("Snellar will try again soon")
-        color: Theme.text2
-        font.pixelSize: Theme.fsBody
-    }
-    PillButton {
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: state.fetch.waiting ? qsTr("Cancel") : qsTr("Try again")
-        icon: state.fetch.waiting ? "" : "refresh"
-        onClicked: state.fetch.waiting ? state.fetch.cancel() : state.fetch.reload()
+        detail: !state.failed || !(state.fetch.offline || state.fetch.retrying) ? "" : state.fetch.offline ? qsTr("Snellar will try again when you're back online") : qsTr("Snellar will try again soon")
+        actionText: state.fetch.waiting ? qsTr("Cancel") : qsTr("Try again")
+        actionIcon: state.fetch.waiting ? "" : "refresh"
+        onActed: state.fetch.waiting ? state.fetch.cancel() : state.fetch.reload()
     }
 }

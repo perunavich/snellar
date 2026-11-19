@@ -7,6 +7,8 @@ Item {
     property var items: []
     property Component delegate
     property int itemHeight: Theme.cardCover + Theme.cardText
+    property int itemWidth: Theme.cardCover
+    readonly property real pitch: itemWidth + list.spacing
     property string moreText: ""
     readonly property bool arrowsShown: list.contentWidth > list.width
     signal more()
@@ -44,7 +46,6 @@ Item {
             iconSize: Theme.iconSm
             filledBg: true
             enabled: list.contentX > 0
-            opacity: enabled ? 1 : Theme.disabledOpacity
             onClicked: shelf.scroll(-1)
         }
         IconButton {
@@ -55,24 +56,23 @@ Item {
             iconSize: Theme.iconSm
             filledBg: true
             enabled: list.contentX < list.contentWidth - list.width - 1
-            opacity: enabled ? 1 : Theme.disabledOpacity
             onClicked: shelf.scroll(1)
         }
     }
 
     function scroll(dir) {
-        const to = Math.max(0, Math.min(list.contentWidth - list.width, list.contentX + dir * list.width * 0.8))
-        slide.to = to
-        slide.restart()
+        const tiles = Math.max(1, Math.floor((list.width + list.spacing) / pitch))
+        const from = Math.round(list.contentX / pitch)
+        slide.snap(list.contentX)
+        slide.target = Math.max(0, Math.min(list.contentWidth - list.width, (from + dir * tiles) * pitch))
     }
 
-    NumberAnimation {
+    SpringValue {
         id: slide
-        target: list
-        property: "contentX"
-        duration: Theme.emphasized
-        easing.type: Easing.BezierSpline
-        easing.bezierCurve: Theme.curveStandard
+        reducible: true
+        zeta: Motion.sheetCloseDamping
+        response: Motion.sheetOpenResponse
+        onValueChanged: list.contentX = value
     }
 
     ListView {

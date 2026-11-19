@@ -1,9 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import Snellar
 
-Popup {
+Modal {
     id: help
     property var shortcuts: []
     readonly property var groups: shortcuts.reduce((all, s) => all.indexOf(s.group) >= 0 ? all : all.concat([s.group]), [])
@@ -13,19 +12,12 @@ Popup {
         return sequence.split("+").map(k => names[k] || k).join(" + ")
     }
 
-    parent: Overlay.overlay
-    anchors.centerIn: parent
     width: Math.min(Theme.keyHelpWidth, parent.width - 2 * Theme.space2xl)
     height: Math.min(implicitHeight, parent.height - 2 * Theme.space2xl)
-    modal: true
-    focus: true
-    padding: Theme.spaceXl
-
-    Overlay.modal: Rectangle { color: Theme.scrim }
 
     Connections {
         target: Nav
-        function onKeysChanged() { if (Nav.keys) help.open(); else help.close() }
+        function onKeysChanged() { if (Nav.keys) help.openFrom(null); else help.close() }
     }
     onClosed: Nav.keys = false
 
@@ -33,13 +25,6 @@ Popup {
         sequences: ["Escape", "Ctrl+/", "F1"]
         enabled: help.opened
         onActivated: help.close()
-    }
-
-    background: Rectangle {
-        radius: Theme.rLg
-        color: Theme.menu
-        border.width: 1
-        border.color: Theme.separator
     }
 
     contentItem: Flickable {

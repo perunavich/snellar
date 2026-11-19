@@ -3,22 +3,30 @@ import QtQuick
 import QtQuick.Controls
 import Snellar
 
-Popup {
+Modal {
     id: editor
     property var list: null
     property string cover: ""
     property bool deleting: false
-    readonly property var covers: list ? list.tracks.map(t => t.thumb).filter((u, i, all) => u && all.indexOf(u) === i).slice(0, 8) : []
-    readonly property string shown: cover || (covers.length ? covers[0] : "")
+    property var earlier: []
+    readonly property var choices: (list && list.cover ? [list.cover] : []).concat(earlier)
+    readonly property string shown: cover || (list ? list.thumb : "")
     signal saved()
 
-    function edit(playlist) {
+    function edit(playlist, from) {
         list = playlist
         cover = playlist.cover
         name.text = playlist.name
         about.text = playlist.description
-        open()
+        earlier = []
+        recall()
+        openFrom(from || null)
         name.forceActiveFocus()
+    }
+
+    function recall() {
+        const id = list.id
+        Api.call("playlistCovers", { id: id }, v => { if (list && list.id === id) earlier = v || [] })
     }
 
     function pickFile(path) {
@@ -26,13 +34,14 @@ Popup {
             if (e) return Api.toast(e)
             cover = v
             list = Object.assign({}, list, { cover: v })
+            recall()
             saved()
         })
     }
 
     function save() {
         const changes = { id: list.id, name: name.text.trim() || list.name, description: about.text.trim() }
-        if (cover !== list.cover && !cover.startsWith("file:")) changes.cover = cover
+        if (cover !== list.cover) changes.cover = cover
         close()
         Api.call("editPlaylist", changes, () => saved())
     }
@@ -43,16 +52,9 @@ Popup {
         Api.deletePlaylist(gone)
     }
 
-    parent: Overlay.overlay
-    anchors.centerIn: parent
     width: Theme.editorWidth
-    modal: true
-    focus: true
-    padding: Theme.spaceXl
     closePolicy: deleting ? Popup.CloseOnPressOutside : Popup.CloseOnEscape | Popup.CloseOnPressOutside
     onClosed: deleting = false
-
-    Overlay.modal: Rectangle { color: Theme.scrim }
 
     Shortcut {
         sequence: "Escape"
@@ -61,13 +63,6 @@ Popup {
             if (editor.deleting) editor.deleting = false
             else editor.close()
         }
-    }
-
-    background: Rectangle {
-        radius: Theme.rLg
-        color: Theme.menu
-        border.width: 1
-        border.color: Theme.separator
     }
 
     FilePicker {
@@ -134,19 +129,19 @@ Popup {
         }
 
         Text {
-            visible: editor.covers.length > 1
-            text: qsTr("Cover from a song")
+            visible: editor.earlier.length > 0
+            text: qsTr("Earlier covers")
             color: Theme.text2
             font.pixelSize: Theme.fsCaption
         }
 
         Flow {
             width: parent.width
-            visible: editor.covers.length > 1
+            visible: editor.earlier.length > 0
             spacing: Theme.spaceSm
 
             Repeater {
-                model: editor.covers
+                model: editor.choices
                 delegate: Item {
                     id: choice
                     required property string modelData
@@ -164,24 +159,13 @@ Popup {
                     }
                     MouseArea {
                         anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
                         onClicked: editor.cover = choice.modelData
                     }
                 }
             }
         }
 
-        Flow {
-            width: parent.width
-            spacing: Theme.spaceSm
-
-            PillButton { text: qsTr("Choose image…"); icon: "folder"; onClicked: coverPicker.open() }
-            PillButton {
-                visible: editor.cover.length > 0
-                text: qsTr("Use the first song's cover")
-                onClicked: editor.cover = ""
-            }
-        }
+        PillButton { text: qsTr("Choose image…"); icon: "folder"; onClicked: coverPicker.open() }
 
         Item {
             width: parent.width

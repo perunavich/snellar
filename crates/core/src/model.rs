@@ -21,12 +21,128 @@ pub struct Track {
     pub thumb: String,
     pub explicit: bool,
     pub video: bool,
+    #[serde(skip_serializing_if = "Upload::is_unknown")]
+    pub upload: Upload,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uploader: Option<Box<Ref>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pick: Option<Box<Pick>>,
 }
 
 impl Track {
     pub fn artist_line(&self) -> String {
         self.artists.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", ")
     }
+
+    pub fn via(&self) -> Via {
+        self.pick.as_ref().map_or(Via::User, |p| p.via)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum Upload {
+    #[default]
+    Unknown,
+    Song,
+    Video,
+    Official,
+    User,
+    Podcast,
+}
+
+impl Upload {
+    pub fn is_unknown(&self) -> bool {
+        *self == Upload::Unknown
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum Via {
+    #[default]
+    User,
+    Wave,
+    Radio,
+    Autoplay,
+    Because,
+    Daypart,
+    Shelf,
+}
+
+impl Via {
+    pub const ALL: [Via; 7] = [Via::User, Via::Wave, Via::Radio, Via::Autoplay, Via::Because, Via::Daypart, Via::Shelf];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Via::User => "user",
+            Via::Wave => "wave",
+            Via::Radio => "radio",
+            Via::Autoplay => "autoplay",
+            Via::Because => "because",
+            Via::Daypart => "daypart",
+            Via::Shelf => "shelf",
+        }
+    }
+
+    pub fn parse(name: &str) -> Via {
+        Via::ALL.into_iter().find(|v| v.name() == name).unwrap_or_default()
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Pick {
+    pub via: Via,
+    pub position: u32,
+    pub version: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub why: Option<Why>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum Why {
+    Played { artist: String },
+    Liked { artist: String },
+    Similar { artist: String },
+    Favourite,
+    Mood { name: String },
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum Part {
+    Morning,
+    #[default]
+    Day,
+    Evening,
+    Night,
+}
+
+impl Part {
+    pub const ALL: [Part; 4] = [Part::Morning, Part::Day, Part::Evening, Part::Night];
+
+    pub fn of_hour(hour: u32) -> Part {
+        match hour {
+            5..=10 => Part::Morning,
+            11..=16 => Part::Day,
+            17..=21 => Part::Evening,
+            _ => Part::Night,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DayPick {
+    pub part: Part,
+    pub habits: Vec<Part>,
+    pub habit: bool,
+    pub weekend: Option<bool>,
+    pub artists: Vec<String>,
+    pub plays: usize,
+    pub days: usize,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -97,6 +213,7 @@ pub struct Artist {
     pub name: String,
     pub thumb: String,
     pub banner: String,
+    pub listeners: String,
     pub subscribers: String,
     pub description: String,
     pub top: Vec<Track>,
@@ -141,22 +258,40 @@ pub struct Shelf {
     pub tracks: Vec<Track>,
     pub albums: Vec<AlbumCard>,
     pub artists: Vec<ArtistCard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pick: Option<DayPick>,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+impl Shelf {
+    pub fn is_empty(&self) -> bool {
+        self.tracks.is_empty() && self.albums.is_empty() && self.artists.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LyricLine {
     pub time: f64,
     pub text: String,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Lyrics {
     pub synced: bool,
     pub lines: Vec<LyricLine>,
     pub plain: String,
     pub source: String,
+}
+
+impl Lyrics {
+    pub fn timed(lines: Vec<LyricLine>, source: &str) -> Lyrics {
+        Lyrics { synced: true, lines, plain: String::new(), source: source.into() }
+    }
+
+    pub fn text(plain: &str, source: &str) -> Lyrics {
+        Lyrics { synced: false, lines: Vec::new(), plain: plain.trim().into(), source: source.into() }
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -272,6 +407,8 @@ pub struct ImportResult {
     pub limited: bool,
     pub source_total: Option<usize>,
     pub failed: usize,
+    pub merged: Vec<ImportTrack>,
+    pub hidden: Vec<usize>,
     #[serde(skip_deserializing, skip_serializing_if = "Option::is_none")]
     pub code: Option<Code>,
 }

@@ -35,8 +35,8 @@ Item {
 
     SpringValue {
         id: spring
-        zeta: Nudges.current ? Theme.springBase[0] : Theme.springCritical[0]
-        response: Nudges.current ? Theme.springBase[1] : Theme.springCritical[1]
+        zeta: Nudges.current ? Motion.sheetOpenDamping : Motion.sheetCloseDamping
+        response: Nudges.current ? Motion.sheetOpenResponse : Motion.sheetCloseResponse
         target: Nudges.current ? 1 : 0
     }
 
@@ -66,7 +66,7 @@ Item {
                 width: Theme.controlXl
                 height: Theme.controlXl
                 radius: Theme.rArtM
-                px: 96
+                px: Theme.coverRowPx
                 url: host.spec && host.spec.cover ? host.spec.cover : ""
             }
 

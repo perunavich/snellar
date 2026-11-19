@@ -8,6 +8,7 @@ Loader {
     property var entity
     property int queueIndex: -1
     property var playlistId: null
+    property bool played: false
     active: false
 
     function toggle(at, x, y) {
@@ -33,5 +34,6 @@ Loader {
         entity: spot.entity
         queueIndex: spot.queueIndex
         playlistId: spot.playlistId
+        played: spot.played
     }
 }

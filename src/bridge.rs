@@ -25,6 +25,8 @@ pub mod qobject {
         #[qproperty(bool, tray_ready)]
         #[qproperty(QString, failure)]
         #[qproperty(QString, library)]
+        #[qproperty(QString, reach)]
+        #[qproperty(QString, part)]
         type Core = super::CoreRust;
 
         #[qinvokable]
@@ -32,6 +34,9 @@ pub mod qobject {
 
         #[qinvokable]
         fn settings(self: &Core) -> QString;
+
+        #[qinvokable]
+        fn peek(self: &Core, method: &QString, args: &QString) -> QString;
 
         #[qinvokable]
         fn desktop(self: &Core) -> QString;
@@ -108,6 +113,10 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "importProgress"]
         fn import_progress(self: Pin<&mut Core>, json: QString);
+
+        #[qsignal]
+        #[cxx_name = "downloadsChanged"]
+        fn downloads_changed(self: Pin<&mut Core>, json: QString);
     }
 
     impl cxx_qt::Threading for Core {}
@@ -122,10 +131,11 @@ use std::sync::Arc;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::QString;
 
+use snellar_core::error::Code;
 use snellar_core::ui::{Ui, UiEvent};
 use snellar_core::{journal, settings};
 
-use crate::app::App;
+use snellar_app::App;
 
 unsafe extern "C" {
     fn snellar_window_bar(background: *const c_char, text: *const c_char);
@@ -148,6 +158,8 @@ pub struct CoreRust {
     tray_ready: bool,
     failure: QString,
     library: QString,
+    reach: QString,
+    part: QString,
     app: Option<Arc<App>>,
     next_id: i32,
 }
@@ -171,6 +183,8 @@ impl Default for CoreRust {
             tray_ready: false,
             failure: QString::from("null"),
             library: QString::from("null"),
+            reach: QString::default(),
+            part: QString::default(),
             app: None,
             next_id: 0,
         }
@@ -209,6 +223,11 @@ fn apply(mut core: Pin<&mut qobject::Core>, ev: UiEvent) {
         UiEvent::Toast(t) => core.toast(QString::from(t.json().as_str())),
         UiEvent::PlayFailure(f) => core.set_failure(json(&f)),
         UiEvent::Library(l) => core.set_library(json(&l)),
+        UiEvent::Reach(code) => core.set_reach(QString::from(code.map_or("", Code::as_str))),
+        UiEvent::Part(part) => {
+            let key = serde_json::to_value(part).ok().and_then(|v| v.as_str().map(String::from));
+            core.set_part(QString::from(key.as_deref().unwrap_or_default()));
+        }
         UiEvent::Nudge(j) => core.nudge(QString::from(j.as_str())),
         UiEvent::Desktop(j) => core.desktop_changed(QString::from(j.as_str())),
         UiEvent::Capture(dir) => core.capture(QString::from(dir.as_str())),
@@ -216,6 +235,7 @@ fn apply(mut core: Pin<&mut qobject::Core>, ev: UiEvent) {
         UiEvent::Stream(s) => core.set_stream(json(&s)),
         UiEvent::TrayReady(ready) => core.set_tray_ready(ready),
         UiEvent::TrayAction(action) => core.tray_action(QString::from(action.as_str())),
+        UiEvent::Downloads(busy) => core.downloads_changed(json(&busy)),
     }
 }
 
@@ -248,12 +268,17 @@ impl qobject::Core {
         json(&settings::registry())
     }
 
+    pub fn peek(&self, method: &QString, args: &QString) -> QString {
+        let kept = self.rust().app.as_ref().and_then(|app| app.peek(&method.to_string(), &args.to_string()));
+        QString::from(kept.unwrap_or_default().as_str())
+    }
+
     pub fn version(&self) -> QString {
         QString::from(snellar_core::product::shown_version(snellar_core::product::VERSION).as_str())
     }
 
     pub fn desktop(&self) -> QString {
-        json(crate::desktop::current())
+        json(snellar_app::current_desktop())
     }
 
     pub fn window_bar(&self, background: &QString, text: &QString) {

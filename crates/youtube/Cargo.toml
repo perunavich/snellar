@@ -15,7 +15,3 @@ serde.workspace = true
 serde_json.workspace = true
 snellar-core.workspace = true
 tokio = { workspace = true, features = ["fs", "io-util", "net", "process", "rt", "sync", "time"] }
-
-[dev-dependencies]
-snellar-core = { workspace = true, features = ["test-guard"] }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

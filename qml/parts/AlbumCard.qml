@@ -7,6 +7,7 @@ MediaCard {
     readonly property string from: album ? "album:" + album.id : ""
     menuKind: remote ? "remote" : "album"
     menuEntity: album
+    warms: album ? { method: remote ? "remotePlaylist" : "album", id: album.id } : null
     url: album ? album.thumb : ""
     title: album ? album.title : ""
     subtitle: album ? [Words.kind(album.kind), album.year, Theme.artists(album)].filter(x => x).join(" · ") : ""

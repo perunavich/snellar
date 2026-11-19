@@ -73,7 +73,6 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         preventStealing: true
-        cursorShape: Qt.PointingHandCursor
         onPressed: m => slider.emit(m.x)
         onPositionChanged: m => { if (pressed) slider.emit(m.x) }
         onDoubleClicked: slider.moved(slider.neutral)

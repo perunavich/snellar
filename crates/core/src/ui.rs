@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::error::Code;
 use crate::ids::TrackId;
-use crate::model::{ImportProgress, Repeat, StreamInfo, Track};
+use crate::model::{ImportProgress, Part, Repeat, StreamInfo, Track};
 
 #[derive(Clone, Debug, Default)]
 pub struct PlayState {
@@ -83,6 +83,8 @@ pub enum UiEvent {
     Toast(Toast),
     PlayFailure(Option<PlayFailure>),
     Library(Option<LibraryProblem>),
+    Reach(Option<Code>),
+    Part(Part),
     Nudge(String),
     Capture(String),
     Import(ImportProgress),
@@ -90,6 +92,7 @@ pub enum UiEvent {
     Desktop(String),
     TrayReady(bool),
     TrayAction(String),
+    Downloads(Vec<TrackId>),
 }
 
 pub type Ui = Arc<dyn Fn(UiEvent) + Send + Sync>;

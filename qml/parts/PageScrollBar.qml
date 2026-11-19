@@ -5,6 +5,7 @@ import Snellar
 ScrollBar {
     id: bar
     implicitWidth: Theme.scrollBar
+    bottomPadding: topPadding + Nav.floor
     contentItem: Rectangle {
         implicitWidth: Theme.scrollThumb
         radius: Theme.scrollThumb / 2

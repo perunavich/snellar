@@ -9,15 +9,15 @@ ListView {
     property Component intro
     property bool numbered: false
     property bool showAlbum: true
-    property bool removable: false
     property bool radio: false
     property bool dated: false
     property bool reorderable: false
     property var playlistId: null
+    property bool played: false
     property string from: ""
     property var origin: null
     readonly property real inset: Theme.space2xl
-    signal removeRequested(var track)
+    readonly property real headroom: Theme.navBar
     signal moveRequested(var track, int to)
 
     property var picked: ({})
@@ -45,7 +45,10 @@ ListView {
         const slot = itemAtIndex(index)
         if (slot) focusIn(slot)
     }
-    function focusIn(slot) { slot.rowItem.forceActiveFocus() }
+    function focusIn(slot) {
+        Nav.keyboard()
+        slot.rowItem.forceActiveFocus()
+    }
 
     function keyOn(index, event) {
         const step = event.key === Qt.Key_Down ? 1 : event.key === Qt.Key_Up ? -1 : 0
@@ -93,6 +96,7 @@ ListView {
 
     function setRows() {
         const held = Window.activeFocusItem
+        restoring = true
         model = tracks
         if (tracks.length) Api.prefetch(tracks[0])
         if (held && !held.activeFocus) held.forceActiveFocus()
@@ -126,19 +130,19 @@ ListView {
     clip: true
     reuseItems: true
     cacheBuffer: 800
-    bottomMargin: inset
+    bottomMargin: inset + Nav.floor
     boundsBehavior: Flickable.StopAtBounds
 
     ScrollBar.vertical: PageScrollBar { }
 
     header: Item {
         width: page.width
-        height: head.height + page.inset + Theme.sectionGap
+        height: head.height + page.headroom + Theme.sectionGap
 
         Loader {
             id: head
             x: page.inset
-            y: page.inset
+            y: page.headroom
             width: page.width - 2 * page.inset
             sourceComponent: page.intro
         }
@@ -175,7 +179,7 @@ ListView {
                 x: page.inset
                 width: page.width - 2 * page.inset
                 height: parent.height
-                radius: Theme.rMd
+                radius: Theme.rRow
                 color: Theme.fillPress
                 visible: page.held === lift && page.dragging
             }
@@ -228,16 +232,15 @@ ListView {
                 rank: slot.index
                 numbered: page.numbered
                 showAlbum: page.showAlbum
-                removable: page.removable
                 radio: page.radio
                 dated: page.dated
                 selected: page.picked[slot.modelData.id] === true
                 group: selected && page.selection.length > 1 ? page.selection : []
                 onPickRequested: modifiers => page.pick(slot.index, modifiers)
                 playlistId: page.playlistId
+                played: page.played
                 from: page.from
                 origin: page.origin
-                onRemoveRequested: page.removeRequested(slot.modelData)
             }
         }
     }

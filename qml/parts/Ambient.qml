@@ -25,7 +25,7 @@ Item {
             id: a
             anchors.fill: parent
             anchors.margins: -parent.width * 0.03
-            sourceSize.width: 120
+            sourceSize: Qt.size(Theme.ambientDecode, 0)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             visible: false
@@ -33,7 +33,7 @@ Item {
         Image {
             id: b
             anchors.fill: a
-            sourceSize.width: 120
+            sourceSize: Qt.size(Theme.ambientDecode, 0)
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             visible: false
@@ -47,7 +47,7 @@ Item {
             blurMax: 8
             saturation: 0.4
             opacity: amb.flip && a.status === Image.Ready ? amb.strength : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.ambientFade; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard } }
+            Behavior on opacity { Ease { duration: Theme.ambientFade } }
         }
         MultiEffect {
             anchors.fill: b
@@ -57,7 +57,7 @@ Item {
             blurMax: 8
             saturation: 0.4
             opacity: !amb.flip && b.status === Image.Ready ? amb.strength : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.ambientFade; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard } }
+            Behavior on opacity { Ease { duration: Theme.ambientFade } }
         }
     }
 

@@ -19,35 +19,14 @@ Item {
         intro: Column {
             spacing: Theme.sectionGap
 
-            Column {
+            Hero {
                 width: parent.width
-                spacing: Theme.spaceXs
-                Text {
-                    width: parent.width
-                    text: qsTr("Popular songs")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.fsLargeTitle
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
-                Link {
-                    visible: !!who.data
-                    text: who.data ? who.data.name : ""
-                    onClicked: Nav.artist(view.params.id)
-                }
-            }
+                url: who.data ? who.data.thumb : ""
+                title: qsTr("Top songs")
+                artists: who.data ? [{ id: who.data.id, name: who.data.name }] : []
+                subtitle: view.songs ? Words.songs(view.songs) : ""
 
-            Row {
-                spacing: Theme.spaceLg
-                PlayButtons { anchors.verticalCenter: parent.verticalCenter; tracks: view.songs || []; from: view.from }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: !!view.songs
-                    text: qsTr("%n song(s)", "", view.songs ? view.songs.length : 0)
-                    color: Theme.text2
-                    font.pixelSize: Theme.fsCallout
-                }
+                PlayButtons { visible: res.loading || (!!view.songs && view.songs.length > 0); tracks: view.songs || []; from: view.from }
             }
 
             ListSkeleton { width: parent.width; visible: res.loading && !view.songs }

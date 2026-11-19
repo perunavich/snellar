@@ -43,7 +43,7 @@ Column {
     Text {
         width: parent.width
         visible: trace.failed && trace.failure.stopped
-        text: qsTr("Playback stopped: 3 tracks in a row could not play")
+        text: qsTr("Playback stopped: 3 songs in a row wouldn't play")
         color: Theme.text
         font.pixelSize: Theme.fsBody
         font.weight: Font.DemiBold

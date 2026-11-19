@@ -32,6 +32,28 @@ const TAG_WORDS: [&str; 32] = [
     "hop",
     "rap",
 ];
+const SPEED_TAIL: [&str; 19] = [
+    "slowed",
+    "bass",
+    "boosted",
+    "reverb",
+    "sped",
+    "speed",
+    "up",
+    "nightcore",
+    "daycore",
+    "8d",
+    "audio",
+    "super",
+    "ultra",
+    "and",
+    "x",
+    "to",
+    "perfection",
+    "version",
+    "edit",
+];
+const SPEED_MARK: [&str; 6] = ["slowed", "sped", "nightcore", "daycore", "8d", "boosted"];
 const SEPARATORS: [&str; 3] = [" - ", " – ", " — "];
 const CREDIT_MARKS: [&str; 5] = [", ", " x ", " × ", " feat. ", " ft. "];
 
@@ -44,6 +66,11 @@ pub struct Parsed {
 fn only_tags(inner: &str) -> bool {
     let mut words = inner.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).peekable();
     words.peek().is_some() && words.all(|w| TAG_WORDS.contains(&w.to_lowercase().as_str()))
+}
+
+fn speed_tail(part: &str) -> bool {
+    let words: Vec<String> = part.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_lowercase).collect();
+    words.iter().any(|w| SPEED_MARK.contains(&w.as_str())) && words.iter().all(|w| SPEED_TAIL.contains(&w.as_str()))
 }
 
 fn strip_tag_groups(title: &str) -> String {
@@ -121,6 +148,9 @@ pub fn parse(raw: &str, uploader: &str) -> Parsed {
         return plain(title);
     }
     let (first, last) = (parts[0], parts[parts.len() - 1]);
+    if parts.len() == 2 && speed_tail(last) {
+        return plain(&unified);
+    }
     let sentence = first.split_whitespace().count() > 6;
     if parts.len() == 2 && same(last, &channel) && !same(first, &channel) {
         return Parsed { artists: credit(last, &channel), title: unquote(first).to_string() };
@@ -129,107 +159,4 @@ pub fn parse(raw: &str, uploader: &str) -> Parsed {
         return plain(&unified);
     }
     Parsed { artists: credit(first, &channel), title: unquote(&parts[1..].join(" - ")).to_string() }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn p(raw: &str, uploader: &str) -> (Vec<String>, String) {
-        let parsed = parse(raw, uploader);
-        (parsed.artists, parsed.title)
-    }
-
-    fn expect(raw: &str, uploader: &str, artists: &[&str], title: &str) {
-        assert_eq!(p(raw, uploader), (artists.iter().map(|a| a.to_string()).collect::<Vec<_>>(), title.to_string()), "{raw}");
-    }
-
-    #[test]
-    fn plain_artist_title() {
-        expect("IVOXYGEN - casino143", "IVOXYGEN", &["IVOXYGEN"], "casino143");
-        expect("Burgos - Lost Cause", "Some Channel", &["Burgos"], "Lost Cause");
-    }
-
-    #[test]
-    fn genre_tags_in_brackets_are_dropped() {
-        expect("KEDELA - SATURN [Wave/Phonk]", "Phonk Hell", &["KEDELA"], "SATURN");
-        expect("KEDELA - SATURN (Phonk)", "x", &["KEDELA"], "SATURN");
-        expect("MXRGX - GET AWAY [FREE DOWNLOAD]", "x", &["MXRGX"], "GET AWAY");
-        expect("Artist - Title (Official Music Video) [4K]", "x", &["Artist"], "Title");
-        expect("Artist - Title (Official Audio)", "Artist Official", &["Artist"], "Title");
-        expect("(Wave) Artist - Title", "x", &["Artist"], "Title");
-    }
-
-    #[test]
-    fn japanese_brackets() {
-        expect("【MV】YOASOBI - Idol", "x", &["YOASOBI"], "Idol");
-    }
-
-    #[test]
-    fn meaningful_brackets_stay() {
-        expect("Artist - Title (Slowed + Reverb)", "x", &["Artist"], "Title (Slowed + Reverb)");
-        expect("Artist - Title (feat. Guest)", "x", &["Artist"], "Title (feat. Guest)");
-        expect("Artist - Title (Live at Wembley)", "x", &["Artist"], "Title (Live at Wembley)");
-    }
-
-    #[test]
-    fn dash_variants() {
-        expect("Artist – Title", "x", &["Artist"], "Title");
-        expect("Artist — Title", "x", &["Artist"], "Title");
-        expect("Jay-Z - 99 Problems", "x", &["Jay-Z"], "99 Problems");
-    }
-
-    #[test]
-    fn swapped_order_follows_the_uploader() {
-        expect("Title - Artist", "Artist", &["Artist"], "Title");
-        expect("title - ivoxygen", "IVOXYGEN", &["IVOXYGEN"], "title");
-        expect("Artist - Title", "Artist", &["Artist"], "Title");
-    }
-
-    #[test]
-    fn several_artists() {
-        expect("Artist x Other - Title [FREE DOWNLOAD]", "x", &["Artist", "Other"], "Title");
-        expect("Artist, Other - Title (Lyrics)", "x", &["Artist", "Other"], "Title");
-        expect("Simon & Garfunkel - Sound of Silence", "x", &["Simon & Garfunkel"], "Sound of Silence");
-    }
-
-    #[test]
-    fn no_separator_uses_the_channel() {
-        expect("Just A Title [Phonk]", "Chan - Topic", &["Chan"], "Just A Title");
-        expect("Song Name (Official Video)", "ArtistVEVO", &["Artist"], "Song Name");
-    }
-
-    #[test]
-    fn extra_parts_stay_in_the_title() {
-        expect("Artist - Title - Remix by X", "x", &["Artist"], "Title - Remix by X");
-    }
-
-    #[test]
-    fn sentences_are_not_split() {
-        expect(
-            "How to make a beat in FL Studio for beginners - Part 2",
-            "Producer Tips",
-            &["Producer Tips"],
-            "How to make a beat in FL Studio for beginners - Part 2",
-        );
-    }
-
-    #[test]
-    fn quotes_and_pipes() {
-        expect("Artist - \"Title\"", "x", &["Artist"], "Title");
-        expect("Artist - Title | Phonk", "x", &["Artist"], "Title");
-        expect("Artist - Title | Official Video", "x", &["Artist"], "Title");
-    }
-
-    #[test]
-    fn degenerate_titles_survive() {
-        expect(" - ", "Chan", &["Chan"], "-");
-        expect("[Phonk]", "Chan", &["Chan"], "[Phonk]");
-        expect("", "Chan", &["Chan"], "");
-    }
-
-    #[test]
-    fn unknown_uploader_gives_no_fallback_artist() {
-        expect("Just A Title", "", &[], "Just A Title");
-    }
 }

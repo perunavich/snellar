@@ -31,42 +31,6 @@ Item {
         onDoubleTapped: frame.toggleMaximized()
     }
 
-    WindowDrag {
-        anchors { right: parent.right; top: parent.top }
-        width: Theme.inspectorWidth + Theme.gap
-        height: Theme.windowBarHeight
-        onDoubleTapped: frame.toggleMaximized()
-    }
-
-    Row {
-        id: controls
-        objectName: "windowControls"
-        anchors { right: parent.right; top: parent.top; margins: Theme.spaceSm }
-        spacing: Theme.spaceXs
-
-        IconButton {
-            icon: "minimize"
-            tip: qsTr("Minimize")
-            size: Theme.windowButton
-            iconSize: Theme.iconXs
-            onClicked: frame.Window.window.showMinimized()
-        }
-        IconButton {
-            icon: frame.maximized ? "restore" : "maximize"
-            tip: frame.maximized ? qsTr("Restore") : qsTr("Maximize")
-            size: Theme.windowButton
-            iconSize: Theme.iconXs
-            onClicked: frame.toggleMaximized()
-        }
-        IconButton {
-            icon: "close"
-            tip: qsTr("Close window")
-            size: Theme.windowButton
-            iconSize: Theme.iconXs
-            onClicked: frame.Window.window.close()
-        }
-    }
-
     Item {
         anchors.fill: parent
         visible: frame.resizable

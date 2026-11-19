@@ -30,7 +30,10 @@ function arrange(items, query, key, reversed, natural) {
     const words = fold(query).split(/\s+/).filter(w => w.length)
     let list = (items || []).map((x, i) => ({ x: x, i: i }))
     if (words.length) list = list.filter(e => { const hay = haystack(e.x); return words.every(w => hay.indexOf(w) >= 0) })
-    if (key !== natural) list.sort((a, b) => compare(value(a.x, key, a.i), value(b.x, key, b.i)) || a.i - b.i)
+    if (key !== natural) {
+        for (const e of list) e.v = value(e.x, key, e.i)
+        list.sort((a, b) => compare(a.v, b.v) || a.i - b.i)
+    }
     if (reversed) list.reverse()
     return list.map(e => e.x)
 }

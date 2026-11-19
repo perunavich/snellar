@@ -21,7 +21,7 @@ fi
 mpv_top=/opt/build/mpv
 tools/mpv-build.sh "$mpv_top"
 
-cargo build --release --locked
+cargo build --release --locked -p snellar --no-default-features
 
 qt_plugins=$(qmake6 -query QT_INSTALL_PLUGINS)
 qt_qml=$(qmake6 -query QT_INSTALL_QML)
@@ -46,7 +46,8 @@ for group in platforms wayland-shell-integration wayland-graphics-integration-cl
     [ -d "$qt_plugins/$group" ] && cp -r "$qt_plugins/$group" "$appdir/usr/lib/qt6/plugins/"
 done
 
-"$qt_libexec/qmlimportscanner" -rootPath qml -importPath "$qt_qml" \
+mapfile -t shipped < <(find qml -path qml/dev -prune -o -type f \( -name '*.qml' -o -name '*.js' \) -print)
+"$qt_libexec/qmlimportscanner" -qmlFiles "${shipped[@]}" -importPath "$qt_qml" \
     | jq -r '.[] | select(.type == "module" and .path != null) | .path' | sort -u \
     | while read -r module; do
         case "$module" in "$qt_qml"/*) ;; *) continue ;; esac
@@ -54,6 +55,7 @@ done
         mkdir -p "$(dirname "$target")"
         [ -e "$target" ] || cp -r "$module" "$target"
     done
+rm -rf "$appdir"/usr/lib/qt6/qml/QtQuick/Controls/{Fusion,FluentWinUI3,Imagine,Material,Universal,designer}
 
 cp -a "$mpv_top/bundle/lib" "$appdir/usr/lib/mpv"
 cat > "$appdir/usr/bin/mpv" <<'EOF'

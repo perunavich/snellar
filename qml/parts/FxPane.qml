@@ -5,6 +5,7 @@ import Snellar
 Column {
     id: pane
     property var fx
+    property bool animated: true
     signal changed(string key, var value)
 
     function db(v) { return qsTr("%1 dB").arg((v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(v % 1 ? 1 : 0)) }
@@ -16,7 +17,7 @@ Column {
     FxRow { text: qsTr("Reverb"); key: "reverb" }
     FxRow { text: qsTr("Echo"); key: "echo" }
     FxRow { text: qsTr("Stereo width"); key: "stereo"; to: 2; neutral: 1; format: "times" }
-    FxSwitch { text: qsTr("Normalize volume"); key: "normalize"; last: true }
+    FxSwitch { text: qsTr("Smooth out volume swings"); key: "normalize"; last: true }
 
     component FxRow: Item {
         id: row
@@ -68,6 +69,7 @@ Column {
         Text { anchors.verticalCenter: parent.verticalCenter; text: sw.text; color: Theme.text; font.pixelSize: Theme.fsBody }
         IosSwitch {
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+            animated: pane.animated
             on: pane.fx[sw.key]
             onToggled: pane.changed(sw.key, !pane.fx[sw.key])
         }

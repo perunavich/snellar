@@ -80,7 +80,6 @@ Item {
         height: Theme.eqHeight
         hoverEnabled: true
         preventStealing: true
-        cursorShape: Qt.PointingHandCursor
         function apply(y) {
             const v = (band.zero - y) / band.half * band.range
             band.moved(Math.round(Math.max(-band.range, Math.min(band.range, v)) * 2) / 2)

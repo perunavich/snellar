@@ -3,9 +3,71 @@ import QtQuick
 import QtQuick.Controls
 import Snellar
 
-Rectangle {
+SidePanel {
     id: bar
-    color: Theme.sidebar
+    lineRight: !Theme.navRight
+    width: Theme.railWidth + (Theme.sidebarWidth - Theme.railWidth) * (1 - bar.fold)
+
+    property bool narrow: false
+    property bool peek: false
+    property bool searching: false
+    readonly property bool held: creating || Nav.renamingFolder !== null
+    readonly property bool rail: !peek && !held && (Theme.sidebarCollapsed || narrow)
+    readonly property real fold: folding.value
+    readonly property bool moving: folding.moving
+    readonly property real words: Motion.railWords(fold)
+
+    SpringValue {
+        id: folding
+        response: Motion.railResponse
+        zeta: Motion.railDamping
+    }
+
+    function settle() {
+        folding.target = rail ? 1 : 0
+        folding.snap(folding.target)
+    }
+
+    onRailChanged: {
+        if (Motion.reduced) settle()
+        else folding.target = rail ? 1 : 0
+    }
+    onNarrowChanged: if (!narrow) peek = false
+
+    function choose(collapsed) {
+        Theme.sidebarCollapsed = collapsed
+        Api.call("setSetting", { key: "sidebarCollapsed", value: collapsed })
+    }
+
+    function toggle() {
+        if (rail) {
+            if (Theme.sidebarCollapsed) choose(false)
+            peek = narrow
+            return
+        }
+        peek = false
+        creating = false
+        if (Nav.renamingFolder !== null) finishRename()
+        if (!narrow) choose(true)
+    }
+
+    function closeSearch() {
+        searching = false
+        search.leave()
+    }
+
+    readonly property bool windowActive: Window.active
+    onWindowActiveChanged: if (!windowActive && searching) closeSearch()
+
+    Connections {
+        target: Nav
+        function onArrived() { if (bar.searching) bar.closeSearch() }
+    }
+
+    function openSearch() {
+        searching = true
+        search.focusField()
+    }
 
     property var playlists: []
     property var remote: []
@@ -39,7 +101,10 @@ Rectangle {
     }
     property var counts: ({ favorites: 0, albums: 0, artists: 0 })
 
-    function focusSearch() { search.focusField() }
+    function focusSearch() {
+        if (rail) openSearch()
+        else search.focusField()
+    }
 
     function newPlaylist() {
         creating = true
@@ -64,14 +129,14 @@ Rectangle {
 
     onCreatingChanged: if (!creating) field.text = ""
 
-    Component.onCompleted: refresh()
-    Connections { target: Api; function onLibraryChanged() { bar.refresh() } }
-
-    Rectangle {
-        anchors { top: parent.top; bottom: parent.bottom }
-        x: Theme.navRight ? 0 : parent.width - width
-        width: 1
-        color: Theme.separator
+    Component.onCompleted: {
+        settle()
+        refresh()
+    }
+    Connections {
+        target: Api
+        function onLibraryChanged() { bar.refresh() }
+        function onPlaylistTracksRemoved() { bar.refresh() }
     }
 
     Column {
@@ -80,41 +145,86 @@ Rectangle {
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.spaceMd }
         spacing: Theme.spaceXs
 
-        SearchField { id: search; width: parent.width; z: 5 }
+        Item {
+            id: head
+            width: parent.width
+            height: Theme.sidebarRow
+            z: 5
 
-        Item { width: 1; height: Theme.spaceSm }
+            Item {
+                id: slot
+                anchors { left: parent.left; right: toggleButton.left; rightMargin: Theme.spaceXs }
+                height: parent.height
+            }
 
-        SidebarRow { width: parent.width; icon: "home"; text: qsTr("Home"); active: Nav.view === "discover"; onClicked: Nav.go("discover") }
+            IconButton {
+                id: toggleButton
+                anchors.right: parent.right
+                size: Theme.sidebarRow
+                iconSize: Theme.iconSm
+                icon: Theme.navRight ? "sidebarRight" : "sidebar"
+                tip: bar.rail ? qsTr("Expand sidebar") : qsTr("Collapse sidebar")
+                activeFocusOnTab: true
+                backed: activeFocus
+                Accessible.role: Accessible.Button
+                Accessible.name: tip
+                Keys.onReturnPressed: bar.toggle()
+                Keys.onEnterPressed: bar.toggle()
+                onClicked: bar.toggle()
+            }
+        }
+
+        Item {
+            id: searchSlot
+            width: parent.width
+            height: Theme.spaceSm + (Theme.sidebarRow - Theme.spaceSm) * bar.fold
+
+            SidebarRow {
+                id: searchRow
+                width: parent.width
+                fold: bar.fold
+                visible: bar.fold >= 1
+                bare: true
+                icon: "search"
+                text: qsTr("Search")
+                active: Nav.view === "search"
+                onClicked: bar.openSearch()
+            }
+        }
+
+        SidebarRow { width: parent.width; fold: bar.fold; icon: "home"; text: qsTr("Home"); active: Nav.view === "discover"; onClicked: Nav.go("discover") }
 
         Item {
             width: parent.width
-            height: Theme.controlMd
+            height: Theme.controlMd + (Theme.spaceSm - Theme.controlMd) * bar.fold
 
-            Text {
-                anchors { left: parent.left; leftMargin: Theme.spaceSm; verticalCenter: library.verticalCenter }
+            Heading {
+                anchors { left: parent.left; leftMargin: Theme.spaceSm; bottom: parent.bottom; bottomMargin: (Theme.fieldButton - height) / 2 }
+                visible: opacity > 0
+                opacity: bar.words
                 text: qsTr("Library")
-                color: Nav.view === "library" ? Theme.accent : Theme.text3
-                font.pixelSize: Theme.fsCaption
-                Tap { onTapped: Nav.go("library") }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-            }
-            IconButton {
-                id: library
-                anchors { right: parent.right; bottom: parent.bottom }
-                icon: "library"
-                tip: qsTr("Whole library")
-                size: Theme.sidebarRow
-                iconSize: Theme.iconSm
-                active: Nav.view === "library"
-                onClicked: Nav.go("library")
             }
         }
-        SidebarRow { width: parent.width; icon: "heart"; text: qsTr("Favorites"); active: Nav.view === "favorites"; count: bar.counts.favorites; onClicked: Nav.go("favorites") }
-        SidebarRow { width: parent.width; icon: "disc"; text: qsTr("Albums"); active: Nav.view === "albums"; count: bar.counts.albums; onClicked: Nav.go("albums") }
-        SidebarRow { width: parent.width; icon: "user"; text: qsTr("Artists"); active: Nav.view === "artists"; count: bar.counts.artists; onClicked: Nav.go("artists") }
-        SidebarRow { width: parent.width; icon: "history"; text: qsTr("History"); active: Nav.view === "history"; onClicked: Nav.go("history") }
+        SidebarRow { width: parent.width; fold: bar.fold; icon: "heart"; text: qsTr("Favorites"); active: Nav.view === "favorites"; count: bar.counts.favorites; onClicked: Nav.go("favorites") }
+        SidebarRow { width: parent.width; fold: bar.fold; icon: "download"; text: qsTr("Downloaded"); active: Nav.view === "downloaded" || Nav.view === "downloadedSongs"; count: Object.keys(Api.downloadedIds).length; onClicked: Nav.go("downloaded") }
+        SidebarRow { width: parent.width; fold: bar.fold; icon: "disc"; text: qsTr("Albums"); active: Nav.view === "albums"; count: bar.counts.albums; onClicked: Nav.go("albums") }
+        SidebarRow { width: parent.width; fold: bar.fold; icon: "user"; text: qsTr("Artists"); active: Nav.view === "artists"; count: bar.counts.artists; onClicked: Nav.go("artists") }
+        SidebarRow { width: parent.width; fold: bar.fold; icon: "history"; text: qsTr("History"); active: Nav.view === "history"; onClicked: Nav.go("history") }
 
-        Text { visible: bar.pinned.length > 0; text: qsTr("Pinned"); color: Theme.text3; font.pixelSize: Theme.fsCaption; topPadding: Theme.spaceMd; leftPadding: Theme.spaceSm }
+        Item {
+            width: parent.width
+            height: pinnedTitle.height + (Theme.spaceSm - pinnedTitle.height) * bar.fold
+            visible: bar.pinned.length > 0
+
+            Heading {
+                id: pinnedTitle
+                visible: opacity > 0
+                opacity: bar.words
+                text: qsTr("Pinned")
+                topPadding: Theme.spaceLg
+                leftPadding: Theme.spaceSm
+            }
+        }
         Repeater {
             model: bar.pinned
             delegate: ListRow {
@@ -127,25 +237,43 @@ Rectangle {
 
         Item {
             width: parent.width
-            height: Theme.controlMd
+            height: Theme.controlMd + (Theme.spaceSm + Theme.spaceXs + Theme.sidebarRow - Theme.controlMd) * bar.fold
 
-            Text {
+            Item {
+                id: playlistsTitle
+                width: parent.width
+                height: Theme.controlMd + (Theme.spaceSm - Theme.controlMd) * bar.fold
+            }
+            Heading {
+                visible: opacity > 0
+                opacity: bar.words
                 anchors { left: parent.left; leftMargin: Theme.spaceSm; verticalCenter: addPlaylist.verticalCenter }
                 text: qsTr("Playlists")
-                color: Theme.text3
-                font.pixelSize: Theme.fsCaption
             }
             IconButton {
                 id: addPlaylist
-                anchors { right: parent.right; bottom: parent.bottom }
+                x: parent.width - Theme.fieldButton - (Theme.sidebarRow - Theme.fieldButton) / 2 * bar.fold
+                y: playlistsTitle.height - Theme.fieldButton + (Theme.spaceXs + (Theme.sidebarRow + Theme.fieldButton) / 2) * bar.fold
+                visible: bar.fold < 1
                 icon: bar.creating ? "close" : "plus"
                 tip: bar.creating ? qsTr("Cancel") : qsTr("New playlist")
-                size: Theme.sidebarRow
-                iconSize: Theme.iconSm
+                size: Theme.fieldButton
+                iconSize: Theme.iconSm + (Theme.iconMd - Theme.iconSm) * bar.fold
                 onClicked: {
                     bar.creating = !bar.creating
                     if (bar.creating) field.forceActiveFocus()
                 }
+            }
+            SidebarRow {
+                id: newRow
+                y: playlistsTitle.height + Theme.spaceXs
+                width: parent.width
+                fold: bar.fold
+                visible: bar.fold >= 1
+                bare: true
+                icon: "plus"
+                text: qsTr("New playlist")
+                onClicked: bar.newPlaylist()
             }
         }
 
@@ -221,8 +349,30 @@ Rectangle {
         }
     }
 
+    SearchField {
+        id: search
+        readonly property bool floats: bar.rail && bar.searching
+        z: 6
+        floating: floats
+        lensRight: floats && Theme.navRight
+        fold: floats ? 0 : bar.fold
+        x: floats ? (Theme.navRight ? top.x + searchSlot.x + searchSlot.width - width : top.x + searchSlot.x) : top.x + slot.x + ((Theme.sidebarRow - Theme.iconMd) / 2 - Theme.spaceSm) * bar.fold
+        y: top.y + (floats ? searchSlot.y : head.y + (searchSlot.y - head.y) * bar.fold)
+        width: floats ? Theme.fieldWidth : Math.max(Theme.sidebarRow, slot.width)
+        dropWidth: floats ? 0 : top.width
+        visible: floats || bar.fold < 1
+        onBusyChanged: if (!busy) Qt.callLater(() => { if (!search.busy) bar.searching = false })
+    }
+
+    component Heading: Text {
+        color: Theme.text
+        font.pixelSize: Theme.fsHeadline
+        font.weight: Font.DemiBold
+    }
+
     component ListRow: SidebarRow {
         id: entry
+        fold: bar.fold
         property var entity
         property string kind: "playlist"
         readonly property string page: kind === "playlist" || kind === "artist" ? kind : kind === "folder" ? "" : "album"
@@ -231,6 +381,7 @@ Rectangle {
         text: entity.name || entity.title || ""
         active: Nav.view === page && Nav.params.id === entity.id && !!Nav.params.playlist === (kind === "remote")
         count: kind === "playlist" || kind === "folder" ? entity.count : 0
+        mark: (kind === "playlist" || kind === "remote" || kind === "album") && Api.collectionDone(kind, entity.id)
         onClicked: {
             if (kind === "folder") Api.call("openFolder", { id: entity.id, open: !entity.open }, () => bar.refresh())
             else ({ playlist: Nav.playlist, remote: Nav.remote, album: Nav.album, artist: Nav.artist })[kind](entity.id)
@@ -250,8 +401,8 @@ Rectangle {
 
         RiffMenu {
             id: folderMenu
-            MenuRow { text: qsTr("Rename"); onTriggered: Nav.renamingFolder = entry.entity.id }
-            MenuRow { text: qsTr("Delete folder"); onTriggered: Api.call("deleteFolder", { id: entry.entity.id }, () => Api.libraryChanged()) }
+            MenuRow { text: qsTr("Rename"); glyph: "rename"; onTriggered: Nav.renamingFolder = entry.entity.id }
+            MenuRow { text: qsTr("Delete folder"); glyph: "trash"; onTriggered: Api.call("deleteFolder", { id: entry.entity.id }, () => Api.libraryChanged()) }
         }
 
         TextField {
@@ -261,8 +412,8 @@ Rectangle {
             focus: visible
             leftPadding: Theme.spaceMd
             color: Theme.text
-            font.pixelSize: Theme.fsCallout
-            background: Rectangle { radius: Theme.rRow; color: Theme.fillRaised }
+            font.pixelSize: Theme.fsBody
+            background: Rectangle { radius: Theme.rMd; color: Theme.fillRaised }
             function begin() {
                 if (!visible) return
                 bar.renameField = rename
@@ -272,7 +423,8 @@ Rectangle {
             }
             onVisibleChanged: begin()
             Component.onCompleted: begin()
-            onAccepted: bar.finishRename()
+            Keys.onReturnPressed: bar.finishRename()
+            Keys.onEnterPressed: bar.finishRename()
             onActiveFocusChanged: if (!activeFocus) Qt.callLater(bar.renameBlurred)
             onTextEdited: bar.folderDraft = text
             Keys.onEscapePressed: { bar.folderDraft = ""; Nav.renamingFolder = null }
@@ -282,9 +434,12 @@ Rectangle {
     SidebarRow {
         id: settings
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: Theme.spaceMd }
+        fold: bar.fold
         icon: "settings"
         text: qsTr("Settings")
         active: Nav.view === "settings"
+        quiet: true
+        dot: Api.updateReady
         onClicked: Nav.go("settings")
     }
 }

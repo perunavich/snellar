@@ -36,7 +36,7 @@ rollback)
 esac
 
 [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || { echo "release only from main" >&2; exit 1; }
-git diff --quiet HEAD -- src qml build.rs Cargo.toml Cargo.lock i18n fonts packaging \
+git diff --quiet HEAD -- src crates qml build.rs Cargo.toml Cargo.lock i18n fonts packaging \
     || { echo "uncommitted changes in the app" >&2; exit 1; }
 git cat-file -e HEAD:packaging/update-key.pub 2>/dev/null \
     || { echo "no committed packaging/update-key.pub: a build without it never updates itself. Run tools/update-key.sh once" >&2; exit 1; }

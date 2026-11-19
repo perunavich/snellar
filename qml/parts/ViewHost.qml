@@ -7,12 +7,13 @@ Item {
 
     readonly property var files: ({
         discover: "Discover", search: "Search", favorites: "Favorites", albums: "Albums",
-        history: "History", settings: "Settings", album: "Album",
-        artist: "Artist", playlist: "Playlist", discography: "Discography", songs: "Songs", artists: "Artists", library: "Library",
+        history: "History", downloaded: "Downloaded", downloadedSongs: "DownloadedSongs", settings: "Settings", album: "Album",
+        artist: "Artist", playlist: "Playlist", discography: "Discography", songs: "Songs", artists: "Artists",
         "import": "Import"
     })
 
     property int serial: 0
+    readonly property var current: (serial % 2 ? one : two).item
 
     Connections {
         target: Nav
@@ -57,8 +58,8 @@ Item {
         next.source = "../views/" + (files[Nav.view] || "Discover") + ".qml"
         next.z = 1
         prev.z = 0
-        next.state = "in"
-        prev.state = "out"
+        next.wanted = true
+        prev.wanted = false
     }
 
     component Page: Loader {
@@ -66,6 +67,23 @@ Item {
         property var params: ({})
         property var restore: null
         property int tries: 0
+        property bool wanted: false
+        property real otherLevel: 0
+        property real lift: 0
+        readonly property real level: arrive.value
+        onWantedChanged: {
+            if (wanted) lift = Theme.spaceLg
+            else if (level > Motion.settledAt) lift = 0
+            if (!wanted && level <= 0) source = ""
+        }
+        onLevelChanged: if (!wanted && level <= 0) source = ""
+        SpringValue {
+            id: arrive
+            reducible: true
+            zeta: page.wanted ? Motion.sheetOpenDamping : Motion.sheetCloseDamping
+            response: page.wanted ? Motion.sheetOpenResponse : Motion.sheetCloseResponse
+            target: page.wanted && page.otherLevel <= Motion.pageHandover ? 1 : 0
+        }
         onLoaded: {
             if (!restore) return
             if (restore.memory) host.recallIn(item, restore.memory)
@@ -92,39 +110,13 @@ Item {
             }
         }
         anchors.fill: parent
-        opacity: 0
+        opacity: Math.max(0, Math.min(1, level))
         visible: opacity > 0.01
-        enabled: state !== "out"
+        enabled: wanted
         Binding { target: page.item; property: "params"; value: page.params; when: page.item !== null }
-        transform: Translate { id: shift; y: 0 }
-        states: [
-            State { name: "in"; PropertyChanges { shift.y: 0; page.opacity: 1 } },
-            State { name: "out"; PropertyChanges { shift.y: -Theme.spaceSm; page.opacity: 0 } }
-        ]
-        transitions: [
-            Transition {
-                to: "in"
-                SequentialAnimation {
-                    PropertyAction { target: shift; property: "y"; value: 16 }
-                    ParallelAnimation {
-                        NumberAnimation { target: shift; property: "y"; duration: Theme.emphasized; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard }
-                        NumberAnimation { target: page; property: "opacity"; duration: Theme.m3; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard }
-                    }
-                }
-            },
-            Transition {
-                to: "out"
-                SequentialAnimation {
-                    ParallelAnimation {
-                        NumberAnimation { target: shift; property: "y"; duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard }
-                        NumberAnimation { target: page; property: "opacity"; duration: Theme.fast; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard }
-                    }
-                    PropertyAction { target: page; property: "source"; value: "" }
-                }
-            }
-        ]
+        transform: Translate { y: page.lift * (1 - Math.min(1, page.level)) }
     }
 
-    Page { id: one }
-    Page { id: two }
+    Page { id: one; otherLevel: two.level }
+    Page { id: two; otherLevel: one.level }
 }

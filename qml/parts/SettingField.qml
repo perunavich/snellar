@@ -12,11 +12,11 @@ TextField {
     height: Theme.controlSm
     leftPadding: Theme.spaceMd
     placeholderText: hint
-    placeholderTextColor: Theme.text3
+    placeholderTextColor: Theme.fieldWell ? Theme.text2 : Theme.text
     color: Theme.text
     font.pixelSize: Theme.fsCallout
     selectByMouse: true
-    background: Rectangle { radius: height / 2; color: Theme.fillPress; border.width: field.problem ? 1 : 0; border.color: Theme.red }
+    background: Rectangle { radius: height / 2; color: Theme.fieldWell ? Theme.sidebar : Theme.fillPress; border.width: field.problem ? 1 : 0; border.color: Theme.red }
 
     Component.onCompleted: Api.call("getSetting", { key: key }, v => { if (v) field.text = v })
     onTextEdited: problem = ""

@@ -1,0 +1,15 @@
+# Snellar
+
+> Snellar is a desktop music player for Linux, written in Rust and Qt Quick, that plays music from YouTube Music. A running Snellar can be controlled by AI agents and scripts through an MCP server (`snellar mcp`), a command line client (`snellar ctl`) and an HTTP and JSON API on the Unix socket `$XDG_RUNTIME_DIR/snellar.sock`.
+
+The API only works while the app is running, and only for the user who runs it: there is no network port and no token. All three ways in use the same methods as the app's own window, so they act on the person's real library.
+
+## Docs
+
+- [Driving Snellar from an agent](https://raw.githubusercontent.com/perunavich/snellar/main/docs/agents.md): how to connect, the 11 MCP tools, the command line, the socket routes, events, errors, examples
+- [API reference](https://raw.githubusercontent.com/perunavich/snellar/main/docs/api.md): every method with its arguments and result, every setting, every error code; generated from the code
+
+## Optional
+
+- [README](https://raw.githubusercontent.com/perunavich/snellar/main/README.md): what the app does and how to install it
+- [Contributing](https://raw.githubusercontent.com/perunavich/snellar/main/CONTRIBUTING.md): building from source and the code style

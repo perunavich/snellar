@@ -22,7 +22,7 @@ Item {
 
         Text {
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
-            text: head.upcoming > 0 ? qsTr("%n next", "", head.upcoming) : qsTr("Nothing next")
+            text: head.upcoming > 0 ? qsTr("%n up next", "", head.upcoming) : qsTr("Nothing up next")
             color: Theme.text3
             font.pixelSize: Theme.fsCaption
         }

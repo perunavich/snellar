@@ -9,11 +9,18 @@ Item {
     readonly property string q: params.q || ""
     readonly property var result: res.data
     property string openedLink: ""
+    // Once a search failed over another search's results, those stay hidden until a search of its own answers.
+    property bool strayed: false
+    readonly property bool showing: !!result && (res.own || !(res.code || res.waiting || strayed))
 
-    function remember() { return { filter: filter } }
-    function recall(memory) { filter = memory.filter }
+    function remember() { return { filter: filter, openedLink: openedLink } }
+    function recall(memory) {
+        filter = memory.filter
+        openedLink = memory.openedLink
+    }
 
-    onResultChanged: {
+    onResultChanged: Qt.callLater(follow)
+    function follow() {
         if (!result || openedLink === q) return
         if (result.linked) {
             openedLink = q
@@ -32,48 +39,47 @@ Item {
         keepStale: true
         args: ({ q: view.q, filter: view.filter })
         ready: view.q.length > 0
+        onCodeChanged: if (code && !own) view.strayed = true
+        onOwnChanged: if (own) view.strayed = false
     }
 
     PageScroll {
         anchors.fill: parent
 
-        Flow {
+        Column {
             width: parent.width
-            spacing: Theme.spaceMd
+            spacing: Theme.spaceLg
 
-            Text {
+            PageTitle {
                 id: heading
                 width: Math.min(implicitWidth, parent.width)
-                text: qsTr("Results for “%1”").arg(view.q)
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: Theme.fsLargeTitle
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
+                text: view.q ? qsTr("Results for “%1”").arg(view.q) : qsTr("Search")
             }
             Item {
-                width: Theme.filterWidth
-                height: Math.max(heading.height, segment.height)
+                width: Math.min(Theme.searchFilterWidth, parent.width)
+                visible: view.q.length > 0
+                height: segment.height
 
                 IosSegment {
                     id: segment
                     width: parent.width
-                    anchors.verticalCenter: parent.verticalCenter
                     current: view.filter
-                    options: [{ key: "all", label: qsTr("All") }, { key: "songs", label: qsTr("Songs") }, { key: "videos", label: qsTr("Videos") }, { key: "artists", label: qsTr("Artists") }, { key: "albums", label: qsTr("Albums") }]
+                    options: [{ key: "all", label: qsTr("All") }, { key: "songs", label: qsTr("Songs") }, { key: "videos", label: qsTr("Videos") }, { key: "artists", label: qsTr("Artists") }, { key: "albums", label: qsTr("Albums") }, { key: "playlists", label: qsTr("Playlists") }]
                     onPicked: key => view.filter = key
                 }
             }
         }
 
-        ListSkeleton { width: parent.width; visible: res.loading && !view.result }
+        ListSkeleton { width: parent.width; card: true; heading: true; visible: res.loading && !view.showing }
 
         ErrorState { width: parent.width; fetch: res }
+
+        SearchRecents { width: parent.width; visible: !view.q }
 
         Column {
             width: parent.width
             spacing: Theme.sectionGap
-            visible: !!view.result
+            visible: view.showing
             opacity: res.loading ? 0.5 : 1
             Behavior on opacity { NumberAnimation { duration: Theme.fast } }
 
@@ -83,10 +89,11 @@ Item {
                 visible: !!hit
                 width: Math.min(parent.width, Theme.topHitWidth)
                 height: Theme.topHitHeight
-                radius: Theme.rLg
+                radius: Theme.rCard
                 color: Theme.fillRaised
-                scale: topArea.pressed ? 0.98 : 1
-                Behavior on scale { NumberAnimation { duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+                scale: topLens.value
+
+                PressLens { id: topLens; down: topArea.pressed; w: topCard.width; h: topCard.height }
 
                 Cover {
                     id: topArt
@@ -113,13 +120,14 @@ Item {
                         text: topCard.hit ? Api.hitCaption(topCard.hit) : ""
                         color: Theme.text2
                         font.pixelSize: Theme.fsCallout
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
                         elide: Text.ElideRight
                     }
                 }
                 MouseArea {
                     id: topArea
                     anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
                     onClicked: Api.openHit(topCard.hit)
                 }
                 IconButton {

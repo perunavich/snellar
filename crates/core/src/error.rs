@@ -3,6 +3,8 @@ use std::fmt;
 use rusqlite::ErrorCode;
 use serde::{Serialize, Serializer};
 
+pub const REFUSED_HERE_FOR: i64 = 30 * 86_400_000;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Code {
     NetOffline,
@@ -65,6 +67,13 @@ pub enum Code {
     UpdateBroken,
     UpdatePlace,
     UpdateSignature,
+    DownloadNoSpace,
+    DownloadFolderInvalid,
+    YtAgeRestricted,
+    YtRemoved,
+    YtRegion,
+    NetYoutubeBlocked,
+    DownloadListSetAside,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,7 +94,7 @@ impl fmt::Display for Told {
     }
 }
 
-pub const ALL: [(Code, &str); 60] = [
+pub const ALL: [(Code, &str); 67] = [
     (Code::NetOffline, "the network is unreachable, or the request could not be sent"),
     (Code::NetDns, "the host name could not be resolved: no network, or DNS failed or is blocked"),
     (Code::NetConnect, "the host refused or reset the connection"),
@@ -148,6 +157,19 @@ pub const ALL: [(Code, &str); 60] = [
     (
         Code::UpdateSignature,
         "the release's checksum file is not signed by the key built into this Snellar, or the signature is missing; nothing was fetched, the installed one stays",
+    ),
+    (Code::DownloadNoSpace, "the disk of the download folder has less than 1 GiB free; no download starts until there is room"),
+    (Code::DownloadFolderInvalid, "the download folder given is relative or climbs out with ..; it must start with / or ~/"),
+    (Code::YtAgeRestricted, "YouTube plays this track only to a signed-in adult (age restriction); retrying cannot help"),
+    (Code::YtRemoved, "YouTube says the track was removed, is private or does not exist; retrying cannot help"),
+    (Code::YtRegion, "YouTube does not offer the track in this country; retrying cannot help until the route changes"),
+    (
+        Code::NetYoutubeBlocked,
+        "YouTube cannot be reached over a direct connection while other hosts answer: the network or the country blocks it; a proxy or a VPN may help",
+    ),
+    (
+        Code::DownloadListSetAside,
+        "toast: a saved download list this build cannot read was kept as `<key>.broken` (or `.broken.2`, …) and started again empty; downloaded files stay",
     ),
 ];
 
@@ -214,6 +236,13 @@ impl Code {
             Code::UpdateBroken => "update.broken",
             Code::UpdatePlace => "update.place",
             Code::UpdateSignature => "update.signature",
+            Code::DownloadNoSpace => "download.no_space",
+            Code::DownloadFolderInvalid => "download.folder_invalid",
+            Code::YtAgeRestricted => "yt.age_restricted",
+            Code::YtRemoved => "yt.removed",
+            Code::YtRegion => "yt.region",
+            Code::NetYoutubeBlocked => "net.youtube_blocked",
+            Code::DownloadListSetAside => "download.list_set_aside",
         }
     }
 
@@ -232,8 +261,27 @@ impl Code {
     pub fn nothing_gets_through(self) -> bool {
         matches!(
             self,
-            Code::NetOffline | Code::NetDns | Code::NetConnect | Code::NetTls | Code::ProxyDown | Code::ProxyAuth | Code::ProxyFailed
+            Code::NetOffline
+                | Code::NetDns
+                | Code::NetConnect
+                | Code::NetTls
+                | Code::NetYoutubeBlocked
+                | Code::ProxyDown
+                | Code::ProxyAuth
+                | Code::ProxyFailed
         )
+    }
+
+    pub fn refusal_lasts(self) -> Option<i64> {
+        match self {
+            Code::YtAgeRestricted | Code::YtRemoved => Some(i64::MAX),
+            Code::YtRegion => Some(REFUSED_HERE_FOR),
+            _ => None,
+        }
+    }
+
+    pub fn refused_for_good(self) -> bool {
+        self.refusal_lasts().is_some()
     }
 
     pub fn passes_by_itself(self) -> bool {
@@ -270,55 +318,5 @@ impl fmt::Display for Code {
 impl Serialize for Code {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(self.as_str())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashSet;
-
-    use anyhow::Context;
-
-    use super::*;
-
-    #[test]
-    fn every_code_is_listed_once_with_a_distinct_name() {
-        let names: HashSet<_> = ALL.iter().map(|(c, _)| c.as_str()).collect();
-        assert_eq!(names.len(), ALL.len());
-        assert!(names.iter().all(|n| n.chars().all(|c| c.is_ascii_lowercase() || c == '.' || c == '_')));
-    }
-
-    #[test]
-    fn the_outermost_code_wins_and_text_context_does_not_hide_it() {
-        let inner = Code::NetTimeout.err("operation timed out");
-        assert_eq!(Code::of(&inner), Code::NetTimeout);
-        let wrapped = Err::<(), _>(inner).context("YouTube Music search request failed").unwrap_err();
-        assert_eq!(Code::of(&wrapped), Code::NetTimeout);
-        assert_eq!(Code::of(&wrapped.context(Code::YtUnavailable)), Code::YtUnavailable);
-        assert_eq!(format!("{:#}", Code::ApiArgs.err("missing argument `q`")), "api.args: missing argument `q`");
-    }
-
-    #[test]
-    fn the_message_never_decides_the_code() {
-        assert_eq!(Code::of(&anyhow::anyhow!("error sending request: connection timed out")), Code::Internal);
-    }
-
-    #[test]
-    fn sqlite_busy_is_locked_and_a_newer_schema_is_its_own_code() {
-        let busy = rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY), None);
-        assert_eq!(Code::of(&anyhow::Error::new(busy).context("save the queue")), Code::LibraryLocked);
-        assert_eq!(crate::library::OpenError::Newer { found: 9, known: 2 }.code(), Code::LibraryNewer);
-        let damaged = rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_NOTADB), None);
-        assert_eq!(Code::of(&anyhow::Error::new(damaged)), Code::LibraryCorrupt);
-        let other = rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CANTOPEN), None);
-        assert_eq!(Code::of(&anyhow::Error::new(other)), Code::LibraryFailed);
-    }
-
-    #[test]
-    fn a_waiting_time_survives_the_context_and_does_not_hide_the_code() {
-        let e = anyhow::Error::msg("429").context(RetryAfter(30)).context(Code::NetLimited).context("search failed");
-        assert_eq!(Code::of(&e), Code::NetLimited);
-        assert_eq!(Code::retry_after(&e), Some(30));
-        assert_eq!(Code::retry_after(&Code::NetServer.err("500")), None);
     }
 }

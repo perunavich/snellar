@@ -22,26 +22,21 @@ Item {
     TrackPage {
         anchors.fill: parent
         dated: true
+        played: true
         radio: true
         tracks: sorter.shown
         intro: Column {
             spacing: Theme.sectionGap
 
-            Row {
+            Hero {
                 width: parent.width
-                spacing: Theme.spaceXl
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: qsTr("History")
-                    color: Theme.text
-                    font.family: Theme.font
-                    font.pixelSize: Theme.fsLargeTitle
-                    font.weight: Font.DemiBold
-                }
-                PlayButtons { anchors.verticalCenter: parent.verticalCenter; visible: sorter.shown.length > 0; tracks: sorter.shown }
-            }
+                glyph: "history"
+                title: qsTr("History")
+                subtitle: res.data ? Words.songs(res.data) : ""
+                tools: ListTools { sorter: sorter; visible: !!res.data && res.data.length > 0 }
 
-            ListTools { sorter: sorter; visible: !!res.data && res.data.length > 0 }
+                PlayButtons { tracks: sorter.shown }
+            }
 
             ListSkeleton { width: parent.width; visible: res.loading && !res.data }
             ErrorState { width: parent.width; fetch: res }

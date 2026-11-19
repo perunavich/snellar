@@ -12,6 +12,7 @@ Item {
     property int cover: Theme.cardCover
     property alias menuKind: spot.kind
     property alias menuEntity: spot.entity
+    property var warms: null
     readonly property bool hovered: hover.hovered
     signal opened()
     signal played()
@@ -19,7 +20,8 @@ Item {
     width: cover
     height: cover + Theme.cardText
 
-    HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
+    HoverHandler { id: hover }
+    Intent { target: card; hovered: hover.hovered; page: card.warms }
     Tap { onTapped: card.opened() }
     MenuTap { menu: spot }
     MenuSpot { id: spot }
@@ -28,11 +30,10 @@ Item {
         id: art
         width: card.cover
         height: card.cover
-        radius: card.round ? card.cover / 2 : Theme.rMd
+        radius: card.round ? card.cover / 2 : Theme.rArtM
         px: 400
+        decode: Math.ceil(card.cover * Screen.devicePixelRatio)
         url: card.url
-        scale: hover.hovered ? 1.03 : 1
-        Behavior on scale { NumberAnimation { duration: Theme.m3; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard } }
 
         Rectangle {
             visible: card.playable
@@ -42,9 +43,10 @@ Item {
             color: Theme.accent
             anchors { right: parent.right; bottom: parent.bottom; margins: Theme.spaceMd }
             opacity: hover.hovered || card.live ? 1 : 0
-            scale: fabArea.pressed ? 0.9 : (hover.hovered || card.live ? 1 : 0.8)
+            transform: Scale { origin.x: Theme.controlLg / 2; origin.y: Theme.controlLg / 2; xScale: fabLens.value; yScale: fabLens.value }
             Behavior on opacity { NumberAnimation { duration: Theme.fast } }
-            Behavior on scale { NumberAnimation { duration: Theme.normal; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveJelly } }
+
+            PressLens { id: fabLens; down: fabArea.pressed; w: Theme.controlLg; h: Theme.controlLg }
 
             Icon { anchors.centerIn: parent; name: card.live && Api.playing ? "pause" : "play"; size: Theme.iconMd; color: Theme.accentInk }
             MouseArea { id: fabArea; anchors.fill: parent; onClicked: card.live ? Api.toggle() : card.played() }
@@ -70,6 +72,8 @@ Item {
             text: card.subtitle
             color: Theme.text2
             font.pixelSize: Theme.fsCallout
+            wrapMode: card.round ? Text.WordWrap : Text.NoWrap
+            maximumLineCount: 2
             elide: Text.ElideRight
         }
     }

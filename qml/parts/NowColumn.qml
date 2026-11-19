@@ -5,8 +5,12 @@ Item {
     id: column
     readonly property var track: Api.current
     readonly property Item soundButton: sound
+    readonly property real glyphInset: (Theme.controlSm - Theme.iconMd) / 2
 
-    Glass { anchors.fill: parent }
+    SidePanel {
+        anchors.fill: parent
+        lineRight: Theme.navRight
+    }
 
     Column {
         id: deck
@@ -16,16 +20,15 @@ Item {
         spacing: Theme.spaceMd
 
         Cover {
-            id: art
             width: parent.width
             height: parent.width
             radius: Theme.rArtL
-            px: 640
+            px: Theme.coverColumnPx
+            standIn: true
             url: column.track ? column.track.thumb : ""
 
             Tap { enabled: !!column.track; onTapped: Nav.nowPlaying = true }
             MenuTap { menu: spot }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
 
         Item {
@@ -34,14 +37,11 @@ Item {
 
             MenuSpot { id: spot; entity: column.track }
 
-            IconButton {
+            MoreButton {
                 id: more
-                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                anchors { right: parent.right; rightMargin: -column.glyphInset; verticalCenter: parent.verticalCenter }
                 visible: !!column.track
-                size: Theme.controlSm
-                icon: "more"
-                tip: qsTr("More")
-                onClicked: spot.toggle(more, 0, more.height)
+                menu: spot
             }
 
             Column {
@@ -57,12 +57,20 @@ Item {
                     font.weight: Font.DemiBold
                     font.family: Theme.font
 
-                    Tap { enabled: Api.albumOf(column.track).length > 0; onTapped: Nav.album(Api.albumOf(column.track)) }
-                    HoverHandler { enabled: Api.albumOf(column.track).length > 0; cursorShape: Qt.PointingHandCursor }
+                    AlbumLink { track: column.track }
                 }
                 ArtistLinks {
                     width: parent.width
                     artists: column.track ? column.track.artists : []
+                }
+                Text {
+                    objectName: "why"
+                    width: parent.width
+                    visible: text.length > 0
+                    text: column.track && column.track.pick ? Words.why(column.track.pick.why) : ""
+                    color: Theme.text2
+                    font.pixelSize: Theme.fsCaption
+                    elide: Text.ElideRight
                 }
                 StreamBadge { width: parent.width }
             }
@@ -84,21 +92,21 @@ Item {
 
             Row {
                 id: actions
+                x: -column.glyphInset
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.spaceXs
-                visible: !!column.track
 
-                IconButton { size: Theme.controlSm; icon: Api.liked ? "heartFill" : "heart"; tip: Api.liked ? qsTr("Unlike") : qsTr("Like"); active: Api.liked; onClicked: Api.like(column.track) }
+                LikeButton { size: Theme.controlSm }
                 QuickAdd { size: Theme.controlSm }
-                IconButton { id: sound; size: Theme.controlSm; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
-                IconButton { size: Theme.controlSm; icon: "expand"; tip: qsTr("Now Playing"); onClicked: Nav.nowPlaying = true }
+                SoundButton { id: sound; size: Theme.controlSm }
+                IconButton { visible: !!column.track; size: Theme.controlSm; icon: "expand"; tip: qsTr("Now Playing"); onClicked: Nav.nowPlaying = true }
             }
 
             VolumeControl {
                 id: volume
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 buttonSize: Theme.controlSm
-                barWidth: parent.width - actions.implicitWidth - Theme.spaceMd - volume.buttonSize - volume.spacing
+                barWidth: parent.width + column.glyphInset - actions.implicitWidth - Theme.spaceMd - volume.buttonSize - volume.spacing
             }
         }
     }

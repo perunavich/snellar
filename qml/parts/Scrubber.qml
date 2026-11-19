@@ -14,8 +14,8 @@ Item {
 
     SpringValue {
         id: pos
-        zeta: Theme.springTracking[0]
-        response: Theme.springTracking[1]
+        zeta: Motion.trackDamping
+        response: Motion.trackResponse
     }
 
     function follow(v, jump) {
@@ -79,7 +79,6 @@ Item {
         anchors { fill: parent; topMargin: -Theme.spaceXs; bottomMargin: -Theme.spaceXs }
         hoverEnabled: true
         preventStealing: true
-        cursorShape: Qt.PointingHandCursor
 
         function frac(x) { return Math.max(0, Math.min(1, x / width)) }
 

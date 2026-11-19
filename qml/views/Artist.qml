@@ -9,8 +9,10 @@ Item {
     readonly property string from: artist ? "artist:" + artist.id : ""
     readonly property var origin: Api.origin("artist", artist)
     property bool followed: false
+    readonly property Item barHead: header
+    readonly property string barTitle: artist ? artist.name : ""
 
-    function checkFollowed() { if (artist) Api.call("followed", {}, v => view.followed = (v || []).some(a => a.id === view.artist.id)) }
+    function checkFollowed() { if (artist) Api.call("followed", {}, v => { if (view && view.artist) view.followed = (v || []).some(a => a.id === view.artist.id) }) }
     onArtistChanged: checkFollowed()
     Connections { target: Api; function onLibraryChanged() { view.checkFollowed() } }
 
@@ -20,17 +22,23 @@ Item {
     PageScroll {
         anchors.fill: parent
         padding: 0
+        headroom: 0
         spacing: Theme.sectionGap
 
         Item {
+            id: header
             width: parent.width
-            height: Theme.artistBanner
+            height: Theme.bannerHeight(width, view.height)
+            clip: true
 
             Image {
-                anchors.fill: parent
-                source: view.artist ? Theme.art(view.artist.banner || view.artist.thumb, 1200) : ""
-                sourceSize.width: 1200
-                fillMode: Image.PreserveAspectCrop
+                readonly property real fill: implicitWidth > 0 && implicitHeight > 0 ? Math.max(header.width / implicitWidth, header.height / implicitHeight) : 0
+                x: (header.width - width) / 2
+                y: (header.height - height) * Theme.bannerFocal
+                width: implicitWidth * fill
+                height: implicitHeight * fill
+                source: view.artist ? Theme.banner(view.artist.banner || view.artist.thumb) : ""
+                sourceSize.width: Theme.bannerPx
                 asynchronous: true
             }
             Rectangle {
@@ -54,11 +62,12 @@ Item {
                     elide: Text.ElideRight
                 }
                 Text {
-                    text: view.artist ? Words.subscribers(view.artist.subscribers) : ""
+                    text: view.artist ? Words.audience(view.artist.listeners || view.artist.subscribers) : ""
                     color: Theme.text2
                     font.pixelSize: Theme.fsBody
                 }
                 Row {
+                    visible: !!view.artist
                     topPadding: Theme.spaceSm
                     spacing: Theme.spaceMd
                     PlayButtons {
@@ -68,27 +77,20 @@ Item {
                         ownShuffle: true
                         onShuffleRequested: Api.artistMix(view.artist, "shuffle")
                     }
-                    PillButton {
+                    ActionButton {
                         text: qsTr("Radio")
                         icon: "radio"
                         enabled: !!view.artist
                         onClicked: Api.artistMix(view.artist, "radio")
                     }
-                    PillButton {
+                    ActionButton {
                         text: view.followed ? qsTr("Following") : qsTr("Follow")
-                        icon: view.followed ? "check" : "plus"
+                        icon: view.followed ? "check" : "userPlus"
+                        on: view.followed
                         enabled: !!view.artist
                         onClicked: Api.follow(view.artist)
                     }
-                    IconButton {
-                        id: more
-                        icon: "more"
-                        tip: qsTr("More")
-                        size: Theme.controlLg
-                        filledBg: true
-                        onClicked: menu.toggle(more, 0, more.height)
-                        MenuSpot { id: menu; kind: "artist"; entity: view.artist }
-                    }
+                    MoreButton { page: true; kind: "artist"; entity: view.artist }
                 }
             }
         }
@@ -98,7 +100,7 @@ Item {
             width: parent.width - 2 * Theme.space2xl
             spacing: Theme.sectionGap
 
-            ListSkeleton { width: parent.width; visible: res.loading && !view.artist }
+            ListSkeleton { width: parent.width; heading: true; visible: res.loading && !view.artist }
             ErrorState { width: parent.width; fetch: res }
 
             Column {

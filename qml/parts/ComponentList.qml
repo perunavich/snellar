@@ -11,11 +11,11 @@ Column {
 
     readonly property var names: ({ mpv: "mpv", "yt-dlp": "yt-dlp", ffmpeg: "ffmpeg", qt: "Qt", audio: qsTr("Audio output"), discord: "Discord", portal: qsTr("File portal"), tray: qsTr("Tray"), blur: qsTr("Window blur") })
     readonly property var sources: ({ bundled: qsTr("Bundled"), system: qsTr("System"), home: qsTr("In your home folder") })
-    readonly property var states: ({ ok: qsTr("Works"), missing: qsTr("Not installed"), broken: qsTr("Broken"), off: qsTr("Off"), on: qsTr("On"), waiting: qsTr("Not running"), none: qsTr("Not here") })
+    readonly property var states: ({ ok: qsTr("Works"), missing: qsTr("Not installed"), broken: qsTr("Broken"), off: qsTr("Off"), on: qsTr("On"), waiting: qsTr("Not running"), none: qsTr("Not available") })
 
     function note(item) {
         if (item.state !== "missing") return ""
-        if (item.id === "yt-dlp") return qsTr("Only Download needs it, and fetches it on first use")
+        if (item.id === "yt-dlp") return qsTr("Only needed for downloads. Snellar gets it when needed")
         if (item.id === "ffmpeg") return qsTr("Optional: without it, downloaded songs have no tags")
         return ""
     }
@@ -39,7 +39,6 @@ Column {
         PillButton {
             visible: !!list.ytdlp && (list.ytdlp.state === "missing" || list.ytdlp.source === "home")
             enabled: !Api.ytdlpBusy
-            opacity: enabled ? 1 : Theme.disabledOpacity
             text: Api.ytdlpBusy ? qsTr("Getting yt-dlp") : list.ytdlp && list.ytdlp.state === "missing" ? qsTr("Get yt-dlp") : qsTr("Update yt-dlp")
             onClicked: Api.fetchYtdlp()
         }

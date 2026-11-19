@@ -9,7 +9,7 @@ Item {
     property string lastToast: ""
 
     function capture() {
-        Api.call("bugReport", {}, (v, err) => { if (err) Api.toast(qsTr("Bug report failed: %1").arg(err)) })
+        Api.call("bugReport", {}, (v, err) => { if (err) Api.toast(qsTr("Couldn't save the bug report: %1").arg(err)) })
     }
 
     function selected() {
@@ -49,8 +49,8 @@ Item {
 
     function pack(name, note) {
         Api.call("bugReportPack", { name: name, note: note, reveal: !Api.mock }, (v, err) => {
-            if (err) Api.toast(qsTr("Could not pack the report: %1").arg(err))
-            else if (!v.shown && !Api.mock) Api.toast(qsTr("Report packed: %1").arg(v.path))
+            if (err) Api.toast(qsTr("Couldn't pack the report: %1").arg(err))
+            else if (!v.shown && !Api.mock) Api.toast(qsTr("Report ready: %1").arg(v.path))
         })
     }
 
@@ -61,11 +61,11 @@ Item {
             group: "bugreport",
             front: true,
             title: qsTr("Bug report saved"),
-            text: name + "\n" + qsTr("The screenshot and track list show what you are listening to."),
+            text: name + "\n" + qsTr("The screenshot and song list show what you're listening to."),
             timeout: 20,
             actions: [{ label: qsTr("Show file"), primary: true, run: text => report.pack(name, text) }],
             field: {
-                placeholder: qsTr("What went wrong? Enter saves, Esc skips"),
+                placeholder: qsTr("What went wrong? Enter saves"),
                 run: text => Api.call("bugReportAttach", { name: name, note: text })
             }
         })

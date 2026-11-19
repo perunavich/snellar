@@ -1,34 +1,19 @@
 import QtQuick
-import QtQuick.Controls
 import Snellar
 
-Popup {
+Modal {
     id: confirm
     property string title
     property string text
     property string action
     signal accepted()
 
-    parent: Overlay.overlay
-    anchors.centerIn: parent
     width: Theme.confirmWidth
-    modal: true
-    focus: true
-    padding: Theme.spaceXl
-
-    Overlay.modal: Rectangle { color: Theme.scrim }
 
     Shortcut {
         sequence: "Escape"
         enabled: confirm.opened
         onActivated: confirm.close()
-    }
-
-    background: Rectangle {
-        radius: Theme.rLg
-        color: Theme.menu
-        border.width: 1
-        border.color: Theme.separator
     }
 
     contentItem: Column {

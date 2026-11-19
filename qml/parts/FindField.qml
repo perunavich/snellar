@@ -8,6 +8,7 @@ Rectangle {
     property string hint
     signal edited(string text)
     signal dismissed()
+    function holds(x, y) { return contains(mapFromItem(null, x, y)) }
 
     function focusField() {
         field.forceActiveFocus()
@@ -17,8 +18,10 @@ Rectangle {
     width: Theme.fieldWidth
     height: Theme.controlSm
     radius: height / 2
-    color: field.activeFocus ? Theme.fillPress : Theme.fillRaised
+    color: field.activeFocus ? Theme.fillPress : over.hovered ? Theme.washed(Theme.fillRaised) : Theme.fillRaised
     Behavior on color { ColorAnimation { duration: Theme.hover } }
+
+    HoverHandler { id: over; cursorShape: Qt.IBeamCursor }
 
     Icon {
         id: lens
@@ -47,7 +50,7 @@ Rectangle {
         anchors { right: parent.right; rightMargin: Theme.spaceXs; verticalCenter: parent.verticalCenter }
         icon: "close"
         tip: qsTr("Clear")
-        size: Theme.sidebarRow
+        size: Theme.fieldButton
         iconSize: Theme.iconXs
         visible: find.query.length > 0
         onClicked: { find.edited(""); field.forceActiveFocus() }

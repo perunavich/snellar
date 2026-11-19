@@ -39,17 +39,11 @@ Item {
         anchors.fill: parent
         spacing: Theme.spaceLg
 
-        Text {
-            text: qsTr("Import playlist")
-            color: Theme.text
-            font.family: Theme.font
-            font.pixelSize: Theme.fsLargeTitle
-            font.weight: Font.DemiBold
-        }
+        PageTitle { text: qsTr("Import playlist") }
 
         Text {
             width: Math.min(page.innerWidth, Theme.importWidth)
-            text: qsTr("Paste a link to a public playlist or album from Spotify, Deezer, Apple Music, Yandex Music or SoundCloud, or choose a CSV file exported with Exportify or TuneMyMusic. Each song is looked up on YouTube Music.")
+            text: qsTr("Paste a link to a public playlist or album from Spotify, Deezer, Apple Music, Yandex Music or SoundCloud, or choose a CSV file from Exportify or TuneMyMusic. Snellar finds each song on YouTube Music.")
             color: Theme.text2
             font.pixelSize: Theme.fsBody
             wrapMode: Text.WordWrap
@@ -73,14 +67,12 @@ Item {
             PillButton {
                 text: qsTr("Import")
                 primary: true
-                opacity: enabled ? 1 : Theme.disabledOpacity
                 enabled: !Imports.running && link.text.trim().length > 0
                 onClicked: view.startLink()
             }
             PillButton {
                 text: qsTr("Choose CSV file")
                 enabled: !Imports.running
-                opacity: enabled ? 1 : Theme.disabledOpacity
                 onClicked: files.open()
             }
             PillButton {
@@ -108,11 +100,18 @@ Item {
                 radius: height / 2
                 color: Theme.fillRaised
                 Rectangle {
-                    width: Imports.total > 0 ? parent.width * Imports.done / Imports.total : 0
+                    width: parent.width * fill.value
                     height: parent.height
                     radius: parent.radius
                     color: Theme.accent
-                    Behavior on width { NumberAnimation { duration: Theme.normal } }
+
+                    SpringValue {
+                        id: fill
+                        reducible: true
+                        zeta: Motion.controlDamping
+                        response: Motion.controlResponse
+                        target: Imports.total > 0 ? Imports.done / Imports.total : 0
+                    }
                 }
             }
         }
@@ -135,7 +134,7 @@ Item {
                 width: parent.width
                 text: !view.result ? "" : view.result.playlist !== null
                     ? qsTr("Added %1 of %2 songs to “%3”").arg(view.result.matched).arg(view.result.total).arg(view.result.name)
-                    : qsTr("None of the %1 songs were found on YouTube Music, so no playlist was made").arg(view.result.total)
+                    : qsTr("None of the %1 songs are on YouTube Music, so no playlist was created").arg(view.result.total)
                 color: Theme.text
                 font.pixelSize: Theme.fsBody
                 font.weight: Font.DemiBold
@@ -145,8 +144,8 @@ Item {
                 visible: !!view.result && view.result.limited
                 width: parent.width
                 text: !view.result ? "" : view.result.sourceTotal
-                    ? qsTr("The service shows %1 of the %2 songs in this playlist. Export it to a CSV file to import all of it.").arg(view.result.total).arg(view.result.sourceTotal)
-                    : qsTr("The page shows only the first %1 songs of this playlist, and it may hold more. Export it to a CSV file to import all of it.").arg(view.result.total)
+                    ? qsTr("The service shows %1 of the %2 songs in this playlist. Export it to CSV to import all of them.").arg(view.result.total).arg(view.result.sourceTotal)
+                    : qsTr("The page shows only the first %1 songs, and the playlist may have more. Export it to CSV to import all of them.").arg(view.result.total)
                 color: Theme.text2
                 font.pixelSize: Theme.fsCallout
                 wrapMode: Text.WordWrap
@@ -154,7 +153,16 @@ Item {
             Text {
                 visible: !!view.result && view.result.failed > 0
                 width: parent.width
-                text: !view.result ? "" : qsTr("%1 songs could not be looked up: %2 Import again to try them.").arg(view.result.failed).arg(Errors.text(view.result.code))
+                text: !view.result ? "" : qsTr("Couldn't look up %n song(s): %1 Import again to retry them.", "", view.result.failed).arg(Errors.text(view.result.code))
+                color: Theme.text2
+                font.pixelSize: Theme.fsCallout
+                wrapMode: Text.WordWrap
+            }
+            Text {
+                readonly property var places: view.result ? view.result.hidden || [] : []
+                visible: places.length > 0
+                width: parent.width
+                text: qsTr("%n song(s) in this playlist aren't available in your country, and the service doesn't say what they are, so they weren't imported. Their places in the playlist: %1.", "", places.length).arg(places.join(", "))
                 color: Theme.text2
                 font.pixelSize: Theme.fsCallout
                 wrapMode: Text.WordWrap
@@ -185,16 +193,32 @@ Item {
             Repeater {
                 id: missing
                 model: view.result ? view.result.unmatched : []
-                delegate: Text {
-                    required property var modelData
-                    width: parent.width
-                    text: [modelData.artists.join(", "), modelData.title].filter(x => x).join(" – ") + (modelData.duration > 0 ? "  ·  " + Theme.time(modelData.duration) : "")
-                    color: Theme.text2
-                    font.pixelSize: Theme.fsCallout
-                    elide: Text.ElideRight
-                }
+                delegate: SongLine {}
+            }
+
+            Text {
+                visible: twice.count > 0
+                height: Theme.controlMd
+                verticalAlignment: Text.AlignVCenter
+                text: qsTr("Already in the playlist: %1").arg(twice.count)
+                color: Theme.text
+                font.pixelSize: Theme.fsBody
+            }
+            Repeater {
+                id: twice
+                model: view.result ? view.result.merged || [] : []
+                delegate: SongLine {}
             }
         }
+    }
+
+    component SongLine: Text {
+        required property var modelData
+        width: parent.width
+        text: [modelData.artists.join(", "), modelData.title].filter(x => x).join(" – ") + (modelData.duration > 0 ? "  ·  " + Theme.time(modelData.duration) : "")
+        color: Theme.text2
+        font.pixelSize: Theme.fsCallout
+        elide: Text.ElideRight
     }
 
     component Field: TextField {

@@ -13,9 +13,19 @@ Rectangle {
     color: Theme.toastFill
     border.width: 1
     border.color: Theme.hairline
-    opacity: 0
-    scale: 0.92
-    visible: opacity > 0
+    readonly property bool shown: state === "shown"
+    readonly property real level: rise.value
+    opacity: Math.max(0, Math.min(1, rise.value))
+    scale: Motion.toastFrom + (1 - Motion.toastFrom) * rise.value
+    visible: rise.value > 0
+
+    SpringValue {
+        id: rise
+        reducible: true
+        zeta: toast.shown ? Motion.toastDamping : Motion.toastLeaveDamping
+        response: toast.shown ? Motion.toastResponse : Motion.toastLeaveResponse
+        target: toast.shown ? 1 : 0
+    }
 
     Row {
         id: content
@@ -47,13 +57,7 @@ Rectangle {
         }
     }
 
-    states: State {
-        name: "shown"
-        PropertyChanges { toast.opacity: 1; toast.scale: 1 }
-    }
-    transitions: Transition {
-        NumberAnimation { properties: "opacity,scale"; duration: Theme.m3; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.curveStandard }
-    }
+    states: State { name: "shown" }
 
     Timer {
         id: hide

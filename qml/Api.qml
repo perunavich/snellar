@@ -11,6 +11,8 @@ QtObject {
     property var likedIds: ({})
     property var downloadedIds: ({})
     property var downloadingIds: ({})
+    property var busyIds: ({})
+    property var collections: ({})
     property var dislikedIds: ({})
     property var pins: []
     readonly property var direct: ["bugReport", "bugReportAttach", "bugReportPack", "reports"]
@@ -20,6 +22,15 @@ QtObject {
     property bool ytdlpBusy: false
     readonly property var registry: parse(Core.settings(), [])
     readonly property var defaults: registry.reduce((all, s) => Object.assign(all, { [s.key]: s.default }), {})
+    property bool timeLeft: defaults.timeLeft === true
+    property bool reduceMotion: defaults.reduceMotion === true
+    property bool updateReady: false
+    property var seen: ({})
+
+    function setting(key) {
+        const v = seen[key]
+        return v === undefined || v === null ? defaults[key] : v
+    }
 
     readonly property var current: mp ? mp.current : parse(Core.current, null)
     readonly property var queue: mp ? mp.queue : parse(Core.queue, [])
@@ -36,6 +47,9 @@ QtObject {
     readonly property bool trayReady: mp ? mp.trayReady : Core.tray_ready
     readonly property var failure: mp ? mp.failure : parse(Core.failure, null)
     readonly property var libraryProblem: mp ? mp.libraryProblem : parse(Core.library, null)
+    readonly property string reach: mp ? mp.reach : Core.reach
+    readonly property string part: mp ? mp.part : Core.part
+    onReachChanged: if (!reach) retry()
     property int retryBase: Theme.retryBase
     property double holdUntil: 0
     function hold(seconds) {
@@ -46,6 +60,7 @@ QtObject {
     signal toast(string text)
     signal offer(string text, string actionText, var action)
     signal libraryChanged()
+    signal playlistTracksRemoved(var id, var trackIds)
     signal historyChanged()
     signal toolsChanged()
     signal updateChanged()
@@ -70,22 +85,28 @@ QtObject {
         try { return JSON.parse(s) } catch (e) { return fallback }
     }
 
-    readonly property var quietly: ["suggest", "prefetch", "artistMix", "getSetting", "getFx", "favorites", "dislikes", "pins", "playlists", "savedPlaylists", "savedAlbums", "folders", "followed", "downloads", "downloadedTracks", "recentPlaylists", "audioDevices"]
+    readonly property var quietly: ["suggest", "prefetch", "warm", "readingLyrics", "artistMix", "getSetting", "getFx", "favorites", "dislikes", "pins", "playlists", "savedPlaylists", "savedAlbums", "folders", "followed", "downloads", "downloadedTracks", "downloadedCollections", "downloadedSongs", "recentPlaylists", "playlistsWith", "audioDevices", "discord"]
 
-    function answer(method, args, done, v, error, code, after, told) {
+    function answer(method, args, done, v, error, code, after, told, text) {
         if (error) {
             if (done && done.length >= 2) done(null, error, code, after)
             else if (!quietly.includes(method) && !told) api.toast(error)
             else if (done) done(null)
             return
         }
-        if (method === "setSetting") api.settingSaved(args.key, args.value)
-        if (done) done(v, null)
+        if (method === "getSetting") seen[args.key] = v
+        if (method === "setSetting") {
+            seen[args.key] = args.value
+            if (args.key === "reduceMotion") reduceMotion = args.value === true
+            api.settingSaved(args.key, args.value)
+        }
+        if (done) done(v, null, "", 0, text)
     }
 
     function applyDesktop(info) {
         if (!info) return
         desktopInfo = info
+        Motion.desktopReduced = info.reducedMotion === true
         if (info.finished) glassBusy = false
         Theme.desktopName = info.desktop
         if (Theme.autoGlass === info.glass) return
@@ -147,6 +168,13 @@ QtObject {
         return id
     }
 
+    function peek(method, args, text) {
+        if (mp) return mp.peek(method, args || {})
+        const kept = Core.peek(method, JSON.stringify(args || {}))
+        if (text && kept !== "") text.raw = kept
+        return kept === "" ? undefined : parse(kept, undefined)
+    }
+
     property int picks: 0
     readonly property var picking: ["play", "radio", "jump"]
     function later(then) {
@@ -161,7 +189,7 @@ QtObject {
     }
     function cardOf(kind, entity) {
         if (kind === "playlist") return { id: entity.id, name: entity.name }
-        return { id: entity.id, title: entity.title, name: entity.name, artists: entity.artists, kind: kind === "remote" ? "Playlist" : entity.kind, year: entity.year, subtitle: entity.subtitle || entity.subscribers, thumb: entity.thumb }
+        return { id: entity.id, title: entity.title, name: entity.name, artists: entity.artists, kind: kind === "remote" ? "Playlist" : entity.kind, year: entity.year, subtitle: entity.subtitle || entity.listeners || entity.subscribers, thumb: entity.thumb }
     }
     function origin(kind, entity) { return entity ? { kind: kind, item: cardOf(kind, entity) } : null }
     function playingFrom(source, tracks) {
@@ -182,8 +210,7 @@ QtObject {
             call("artistSongs", { id: artist.id }, later(songs => {
                 if (!songs || !songs.length) return
                 if (kind === "radio") return radio(songs[0])
-                call("shuffle", { on: true })
-                play(songs, Math.floor(Math.random() * songs.length), source, origin("artist", artist))
+                shufflePlay(songs, source, origin("artist", artist))
             }))
         }))
     }
@@ -194,9 +221,10 @@ QtObject {
             api.libraryChanged()
         })
     }
-    function hitCaption(hit) {
+    function hitCaption(hit, brief) {
         const kind = hit.type === "track" ? (hit.video ? qsTr("Video") : qsTr("Song")) : { album: qsTr("Album"), artist: qsTr("Artist"), playlist: qsTr("Playlist") }[hit.type]
-        return [kind, hit.type === "artist" ? Words.subscribers(hit.subtitle) : Theme.artists(hit)].filter(x => x).join(" · ")
+        if (hit.type === "artist" && brief) return kind
+        return [kind, hit.type === "artist" ? Words.audience(hit.subtitle) : Theme.artists(hit)].filter(x => x).join(" · ")
     }
     function openHit(hit) {
         if (hit.type === "track") radio(hit)
@@ -210,10 +238,16 @@ QtObject {
         else call(hit.type === "album" ? "album" : "remotePlaylist", { id: hit.id }, later(v => { if (v && v.tracks.length) play(v.tracks, 0, "album:" + hit.id, origin(hit.type === "album" ? "album" : "remote", v)) }))
     }
     function follow(artist) {
-        const card = { id: artist.id, name: artist.name, subtitle: artist.subscribers || artist.subtitle || "", thumb: artist.thumb || "" }
+        const card = { id: artist.id, name: artist.name, subtitle: artist.listeners || artist.subscribers || artist.subtitle || "", thumb: artist.thumb || "" }
         call("follow", { artist: card }, () => api.libraryChanged())
     }
     function toggle() { call("toggle") }
+    function toggleShuffle() { call("shuffle", { on: !shuffle }) }
+    function cycleRepeat() { call("repeat", { mode: repeat === "off" ? "all" : (repeat === "all" ? "one" : "off") }) }
+    function shufflePlay(tracks, from, origin) {
+        call("shuffle", { on: true })
+        play(tracks, Math.floor(Math.random() * tracks.length), from, origin)
+    }
     function next() { call("next") }
     function prev() { call("prev") }
     function seek(pos) { call("seek", { pos: pos }) }
@@ -239,9 +273,14 @@ QtObject {
             if (done) done(added > 0)
         })
     }
+    function playlistsWith(track, then) {
+        if (!track) return then({})
+        call("playlistsWith", { trackId: track.id }, v => then((v || []).reduce((all, id) => Object.assign(all, { [id]: true }), {})))
+    }
     function downloadState(track) {
         if (!track) return ""
-        return downloadingIds[track.id] === true ? "downloading" : downloadedIds[track.id] === true ? "downloaded" : ""
+        if (downloadingIds[track.id] === true || busyIds[track.id] === true) return "downloading"
+        return downloadedIds[track.id] === true ? "downloaded" : ""
     }
     function download(tracks) {
         const wanted = tracks.filter(t => !downloadState(t))
@@ -270,8 +309,54 @@ QtObject {
     function refreshDownloaded() {
         call("downloadedTracks", {}, v => downloadedIds = (v || []).reduce((all, id) => Object.assign(all, { [id]: true }), {}))
     }
+    function collection(kind, id) { return collections[kind + ":" + id] || null }
+    function collectionPhase(c) {
+        if (!c) return "off"
+        if (c.asked) return "downloading"
+        if (c.done + c.refused >= c.total) return "done"
+        if (c.stalled === "download.no_space") return "full"
+        if (c.stalled === "ytdlp.missing") return "tool"
+        return c.stalled ? "waiting" : "downloading"
+    }
+    function collectionDone(kind, id) { return collectionPhase(collection(kind, id)) === "done" }
+    function isKept(entry) { return !!collection(entry.kind, entry.id) }
+    function cards(entries) { return entries.map(e => Object.assign({}, e.item, { type: e.kind, at: e.at })) }
+    function downloadCollection(kind, entity, on) {
+        const key = kind + ":" + entity.id
+        const next = Object.assign({}, collections)
+        if (on) next[key] = { kind: kind, id: String(entity.id), total: 0, done: 0, refused: 0, busy: 0, asked: true }
+        else delete next[key]
+        collections = next
+        call("downloadCollection", { kind: kind, id: entity.id, on: on }, (v, error) => {
+            if (error) api.toast(error)
+            refreshCollections()
+            api.libraryChanged()
+        })
+    }
+    function refreshCollections() {
+        call("downloadedCollections", {}, v => collections = (v || []).reduce((all, c) => Object.assign(all, { [c.kind + ":" + c.id]: c }), {}))
+    }
+    property Timer downloadsSettle: Timer {
+        interval: Theme.debounce
+        onTriggered: {
+            api.refreshDownloaded()
+            api.refreshCollections()
+        }
+    }
+    function heardDownloads(busy) {
+        busyIds = (busy || []).reduce((all, id) => Object.assign(all, { [id]: true }), {})
+        if (!downloadsSettle.running) downloadsSettle.start()
+    }
     function setLiked(tracks, on) { call("setLiked", { tracks: tracks, on: on }, () => api.libraryChanged()) }
     function like(track) { call("like", { track: track }, () => api.libraryChanged()) }
+    property var lyricsViews: []
+    function showingLyrics(view, on, away) {
+        const was = lyricsViews.length > 0
+        lyricsViews = lyricsViews.filter(v => v !== view).concat(on ? [view] : [])
+        const now = lyricsViews.length > 0
+        if (now !== was) call("readingLyrics", now ? { on: true } : { on: false, away: !!away })
+    }
+
     property var prefetched: ({})
     property double lastPrefetch: 0
 
@@ -282,6 +367,14 @@ QtObject {
         lastPrefetch = now
         prefetched[track.id] = true
         call("prefetch", { id: track.id })
+    }
+
+    function warm(page) { call("warm", { method: page.method, id: page.id }) }
+    function warmTrack(track) {
+        if (!track) return
+        if (albumOf(track)) warm({ method: "album", id: albumOf(track) })
+        const artist = (track.artists || []).find(a => !!a.id)
+        if (artist) warm({ method: "artist", id: artist.id })
     }
 
     property TextEdit clipboard: TextEdit { visible: false }
@@ -308,6 +401,20 @@ QtObject {
         })
     }
 
+    function setPlaylistCover(id, url) {
+        call("editPlaylist", { id: id, cover: url }, () => api.libraryChanged())
+    }
+
+    function removeFromPlaylist(id, tracks) {
+        const gone = tracks.map(t => t.id)
+        call("removeFromPlaylist", { id: id, trackIds: gone }, () => api.playlistTracksRemoved(id, gone))
+    }
+
+    function showTimeLeft(on) {
+        timeLeft = on
+        call("setSetting", { key: "timeLeft", value: on })
+    }
+
     function albumOf(track) { return track && track.album && track.album.id ? track.album.id : "" }
 
     function isPinned(kind, id) { return pins.some(p => p.kind === kind && p.id === String(id)) }
@@ -322,7 +429,7 @@ QtObject {
         const wasLiked = isLiked(track)
         call("dislike", { track: track }, () => {
             api.libraryChanged()
-            api.offer(qsTr("Disliked. Recommendations will avoid it"), qsTr("Undo"), () => undislike(track, wasLiked))
+            api.offer(qsTr("Disliked. It won't be recommended"), qsTr("Undo"), () => undislike(track, wasLiked))
         })
     }
     function undislike(track, relike) {
@@ -337,19 +444,32 @@ QtObject {
         call("favorites", {}, v => likedIds = byId(v))
         call("dislikes", {}, v => dislikedIds = byId(v))
         refreshDownloaded()
+        refreshCollections()
         call("pins", {}, v => { if (JSON.stringify(v || []) !== JSON.stringify(pins)) pins = v || [] })
     }
 
     onLibraryChanged: refreshLiked()
-    Component.onCompleted: refreshLiked()
+    Component.onCompleted: {
+        refreshLiked()
+        refreshUpdate()
+        call("getSetting", { key: "timeLeft" }, v => { if (v !== null) timeLeft = v })
+        call("getSetting", { key: "reduceMotion" }, v => { if (v !== null) reduceMotion = v === true })
+        for (const s of registry) if (s.section) call("getSetting", { key: s.key })
+    }
 
     onToolsChanged: ytdlpBusy = false
+
+    function refreshUpdate() {
+        call("updateStatus", {}, v => { updateReady = !!v && v.phase === "ready" })
+    }
+    onUpdateChanged: refreshUpdate()
 
     property Connections mockFeed: Connections {
         target: api.mp
         ignoreUnknownSignals: true
         function onPlayed() { api.historyChanged() }
         function onTold(t) { api.hear(t) }
+        function onDownloadsChanged(busy) { api.heardDownloads(busy) }
     }
 
     property Connections link: Connections {
@@ -359,10 +479,11 @@ QtObject {
             if (!asked) return
             delete api.pending[id]
             const v = api.parse(json, null)
-            if (ok) api.answer(asked.method, asked.args, asked.done, v, null)
+            if (ok) api.answer(asked.method, asked.args, asked.done, v, null, "", 0, false, json)
             else api.answer(asked.method, asked.args, asked.done, null, Errors.reply(v), v && v.code, v && v.retryAfter, v && v.told)
         }
         function onToast(json) { api.hear(api.parse(json, {})) }
+        function onDownloadsChanged(json) { api.heardDownloads(api.parse(json, [])) }
         function onHistoryChanged() { api.historyChanged() }
         function onToolsChanged() { api.toolsChanged() }
         function onUpdateChanged() { api.updateChanged() }

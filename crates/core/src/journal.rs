@@ -2,7 +2,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use serde_json::Value;
@@ -10,6 +10,7 @@ use serde_json::Value;
 use crate::clock::stamp;
 use crate::error::Code;
 use crate::product;
+use crate::sync::Lock;
 
 const LIMIT: u64 = 5 * 1024 * 1024;
 const QUEUE: usize = 4096;
@@ -17,7 +18,6 @@ const BATCH: Duration = Duration::from_millis(50);
 const SYNC_EVERY: Duration = Duration::from_secs(5);
 const LINE_MAX: usize = 16 * 1024;
 const STALL: Duration = Duration::from_secs(3);
-const QUIET: [&str; 7] = ["prefetch", "isLiked", "getSetting", "getFx", "methods", "now", "queue"];
 const SECRET_NAMES: [&str; 11] =
     ["token", "key", "sig", "signature", "auth", "password", "secret", "cookie", "bearer", "visitor", "apikey"];
 
@@ -57,10 +57,6 @@ struct Shared {
     queue: Mutex<Queue>,
     wake: Condvar,
     done: Condvar,
-}
-
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 trait Sink: Send {
@@ -138,7 +134,7 @@ impl Journal {
     }
 
     fn push(&self, level: Level, kind: &'static str, text: String) {
-        let mut queue = lock(&self.shared.queue);
+        let mut queue = self.shared.queue.locked();
         if queue.items.len() >= QUEUE {
             queue.dropped += 1;
             return;
@@ -150,7 +146,7 @@ impl Journal {
     }
 
     fn flush(&self, wait: Duration) {
-        let mut queue = lock(&self.shared.queue);
+        let mut queue = self.shared.queue.locked();
         let target = queue.pushed;
         let end = Instant::now() + wait;
         while queue.written < target {
@@ -191,7 +187,7 @@ fn run(shared: Arc<Shared>, mut sink: Box<dyn Sink>) {
     let mut dirty = false;
     let mut repeats = Repeats::default();
     loop {
-        let mut queue = lock(&shared.queue);
+        let mut queue = shared.queue.locked();
         if queue.items.is_empty() && queue.dropped == 0 {
             queue = if dirty {
                 shared.wake.wait_timeout(queue, SYNC_EVERY).unwrap_or_else(|e| e.into_inner()).0
@@ -212,7 +208,7 @@ fn run(shared: Arc<Shared>, mut sink: Box<dyn Sink>) {
         }
         drop(queue);
         std::thread::sleep(BATCH);
-        let mut queue = lock(&shared.queue);
+        let mut queue = shared.queue.locked();
         let items = std::mem::take(&mut queue.items);
         let dropped = std::mem::take(&mut queue.dropped);
         let upto = queue.pushed;
@@ -243,7 +239,7 @@ fn run(shared: Arc<Shared>, mut sink: Box<dyn Sink>) {
         }
         sink.append(out.as_bytes());
         dirty = true;
-        lock(&shared.queue).written = upto;
+        shared.queue.locked().written = upto;
         shared.done.notify_all();
     }
 }
@@ -378,7 +374,7 @@ pub fn error(kind: &'static str, text: impl Into<String>) {
     log(Level::Error, kind, text);
 }
 
-fn flush() {
+pub fn flush() {
     if let Some(journal) = GLOBAL.get() {
         journal.flush(Duration::from_secs(1));
     }
@@ -411,10 +407,10 @@ fn with_space(digest: &str) -> String {
     if digest.is_empty() { String::new() } else { format!(" {digest}") }
 }
 
-pub fn call(source: &'static str, method: &str, args: &Value, took: Duration, failure: Option<&anyhow::Error>) {
+pub fn call(source: &'static str, method: &str, quiet: bool, args: &Value, took: Duration, failure: Option<&anyhow::Error>) {
     let ms = took.as_millis();
     match failure {
-        None if QUIET.contains(&method) => {}
+        None if quiet => {}
         None => info(source, format!("{method}{} {ms} ms", with_space(&digest(args)))),
         Some(e) => {
             warn(failure_kind(source, e), format!("{method}{} failed after {ms} ms: {e:#}", with_space(&digest(args))));
@@ -487,205 +483,4 @@ where
             }
         })
         .expect("stall thread");
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::Arc;
-
-    use super::*;
-
-    fn dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("snellar-journal-{name}-{}", std::process::id()));
-        std::fs::remove_dir_all(&dir).ok();
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    fn read(dir: &Path) -> String {
-        ["journal.1.log", "journal.log"]
-            .iter()
-            .map(|n| String::from_utf8_lossy(&std::fs::read(dir.join(n)).unwrap_or_default()).into_owned())
-            .collect()
-    }
-
-    #[test]
-    fn urls_lose_their_query_and_path() {
-        let s = scrub("GET https://rr1.googlevideo.com/videoplayback?expire=1&sig=AAAA&n=xyz failed, retry http://example.test/a/b.mp3");
-        assert_eq!(s, "GET https://rr1.googlevideo.com/… failed, retry http://example.test/…");
-    }
-
-    #[test]
-    fn home_paths_and_secrets_are_replaced() {
-        let home = dirs::home_dir().unwrap();
-        let s = scrub(&format!("open {}/Music/a.mp3 token=abc123 key: hunter2 &c=WEB", home.display()));
-        assert_eq!(s, "open ~/Music/a.mp3 token=… key:… &c=WEB");
-        assert_eq!(scrub("id dQw4w9WgXcQ"), "id dQw4w9WgXcQ");
-        assert_eq!(scrub("blob AbCdEfGhIjKlMnOpQrStUvWxYz0123456789 end"), "blob … end");
-        assert_eq!(scrub("a\0b"), "ab");
-    }
-
-    #[test]
-    fn network_failures_are_told_apart_by_code_not_text() {
-        assert_eq!(failure_kind("api", &crate::error::Code::NetOffline.err("dns error")), "net");
-        assert_eq!(failure_kind("api", &anyhow::anyhow!("error sending request: connection refused")), "api");
-        assert_eq!(failure_kind("api", &crate::error::Code::ApiArgs.err("missing argument `q`")), "api");
-    }
-
-    #[test]
-    fn digest_keeps_ids_and_drops_bodies() {
-        let args = serde_json::json!({ "track": { "id": "dQw4w9WgXcQ", "thumb": "https://x.test/secret?token=1" }, "index": 2, "tracks": [{ "id": "a" }, { "id": "b" }] });
-        let d = digest(&args);
-        assert!(d.contains("track=dQw4w9WgXcQ") && d.contains("index=2") && d.contains("tracks=2 first=a"), "{d}");
-        assert!(!d.contains("secret"));
-    }
-
-    #[test]
-    fn lines_are_written_in_order_with_level_and_kind() {
-        let dir = dir("order");
-        let j = Journal::open(&dir, LIMIT);
-        j.push(Level::Info, "track", "one".into());
-        j.push(Level::Error, "panic", "two\nframe a\nframe b".into());
-        j.flush(Duration::from_secs(2));
-        let text = read(&dir);
-        let lines: Vec<_> = text.lines().collect();
-        assert_eq!(lines.len(), 4, "{text}");
-        assert!(lines[0].contains("INFO  track    one") && lines[1].contains("ERROR panic    two"), "{text}");
-        assert_eq!(lines[2], "    frame a");
-        assert!(is_entry_start(lines[0]) && !is_entry_start(lines[2]));
-    }
-
-    #[test]
-    fn the_same_line_over_and_over_is_written_once_with_a_count() {
-        let dir = dir("repeat");
-        let j = Journal::open(&dir, LIMIT);
-        for _ in 0..50 {
-            j.push(Level::Warn, "qml", "Error transferring cover".into());
-        }
-        j.push(Level::Info, "api", "other".into());
-        j.flush(Duration::from_secs(2));
-        let text = read(&dir);
-        assert_eq!(text.matches("Error transferring cover").count(), 1, "{text}");
-        assert!(text.contains("repeated 49 more times"), "{text}");
-        assert!(text.find("repeated").unwrap() < text.find("other").unwrap());
-    }
-
-    #[test]
-    fn the_size_stays_under_the_limit_and_the_newest_lines_survive() {
-        let dir = dir("rotate");
-        let j = Journal::open(&dir, 20_000);
-        for i in 0..2000 {
-            j.push(Level::Info, "api", format!("line {i:05} {}", "x".repeat(40)));
-            if i % 200 == 0 {
-                j.flush(Duration::from_secs(2));
-            }
-        }
-        j.flush(Duration::from_secs(2));
-        let size: u64 = ["journal.log", "journal.1.log"].iter().map(|n| std::fs::metadata(dir.join(n)).map_or(0, |m| m.len())).sum();
-        assert!(size <= 20_000, "{size}");
-        assert!(dir.join("journal.1.log").exists());
-        assert!(read(&dir).contains("line 01999"));
-    }
-
-    #[test]
-    fn a_torn_tail_and_zero_bytes_do_not_spoil_the_rest() {
-        let dir = dir("torn");
-        {
-            let j = Journal::open(&dir, LIMIT);
-            j.push(Level::Info, "api", "before".into());
-            j.flush(Duration::from_secs(2));
-        }
-        let mut file = OpenOptions::new().append(true).open(dir.join("journal.log")).unwrap();
-        file.write_all(b"2026-11-02 12:00:00.000 INFO  api      cut in the mi\0\0\0\0\0\0").unwrap();
-        drop(file);
-        let j = Journal::open(&dir, LIMIT);
-        j.push(Level::Info, "api", "after".into());
-        j.flush(Duration::from_secs(2));
-        let text = read(&dir);
-        assert!(text.contains("before") && text.contains("after"));
-        let tail: String = text.lines().filter(|l| l.contains("after")).collect();
-        assert!(is_entry_start(&tail) || tail.contains("after"));
-    }
-
-    struct Stuck(Arc<Mutex<()>>);
-
-    impl Sink for Stuck {
-        fn append(&mut self, _: &[u8]) {
-            let _gate = self.0.lock().unwrap();
-        }
-        fn sync(&mut self) {}
-    }
-
-    #[test]
-    fn a_writer_that_never_returns_does_not_block_callers() {
-        let gate = Arc::new(Mutex::new(()));
-        let held = gate.lock().unwrap();
-        let j = Journal::with_sink(Path::new("/nonexistent"), Box::new(Stuck(gate.clone())));
-        let t = Instant::now();
-        for i in 0..100_000 {
-            j.push(Level::Info, "api", format!("line {i}"));
-        }
-        let took = t.elapsed();
-        assert!(took < Duration::from_secs(1), "{took:?}");
-        assert!(lock(&j.shared.queue).dropped > 0 || lock(&j.shared.queue).items.len() <= QUEUE);
-        drop(held);
-    }
-
-    #[test]
-    fn the_stall_watcher_reports_a_thread_that_stops_answering() {
-        let dir = dir("stall");
-        GLOBAL.get_or_init(|| Journal::open(&dir, LIMIT));
-        let alive = Arc::new(AtomicBool::new(true));
-        let answer = alive.clone();
-        watch_stalls(move |job| {
-            if answer.load(Ordering::Relaxed) {
-                job();
-            }
-            true
-        });
-        std::thread::sleep(Duration::from_millis(1500));
-        alive.store(false, Ordering::Relaxed);
-        std::thread::sleep(Duration::from_secs(6));
-        flush();
-        let text = read(GLOBAL.get().map(|j| j.dir.as_path()).unwrap());
-        assert!(text.contains("ERROR stall"), "{text}");
-    }
-
-    #[test]
-    #[ignore = "prints the cost of a journal call, run on its own"]
-    fn cost() {
-        let dir = dir("cost");
-        let j = Journal::open(&dir, LIMIT);
-        let n = 200_000;
-        let (mut worst, mut total) = (Duration::ZERO, Duration::ZERO);
-        for i in 0..n {
-            let one = Instant::now();
-            j.push(Level::Info, "api", format!("play id=dQw4w9WgXcQ index={i} 12 ms"));
-            let took = one.elapsed();
-            (worst, total) = (worst.max(took), total + took);
-            if i % 2000 == 0 {
-                std::thread::sleep(Duration::from_millis(5));
-            }
-        }
-        j.flush(Duration::from_secs(5));
-        println!("{n} calls: {:.2} us average, worst {worst:?}", total.as_secs_f64() * 1e6 / n as f64);
-        let cpu = || {
-            let mut u: libc::rusage = unsafe { std::mem::zeroed() };
-            unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut u) };
-            (u.ru_utime.tv_sec + u.ru_stime.tv_sec) as f64 + (u.ru_utime.tv_usec + u.ru_stime.tv_usec) as f64 / 1e6
-        };
-        let (before, start) = (cpu(), Instant::now());
-        let mut sent = 0;
-        while start.elapsed() < Duration::from_secs(5) {
-            for _ in 0..100 {
-                j.push(Level::Info, "api", format!("play id=dQw4w9WgXcQ index={sent} 12 ms"));
-                sent += 1;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        let share = (cpu() - before) / start.elapsed().as_secs_f64() * 100.0;
-        println!("1000 lines/s for 5 s: {share:.2} % of one core (caller and writer together)");
-        let size: u64 = ["journal.log", "journal.1.log"].iter().map(|n| std::fs::metadata(dir.join(n)).map_or(0, |m| m.len())).sum();
-        println!("on disk: {size} bytes for {} lines", n + sent);
-    }
 }

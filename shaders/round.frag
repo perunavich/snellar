@@ -9,6 +9,7 @@ layout(std140, binding = 0) uniform buf {
     float wPx;
     float hPx;
     float radiusPx;
+    vec4  crop;
 } ubuf;
 
 layout(binding = 1) uniform sampler2D src;
@@ -24,5 +25,5 @@ void main() {
     float r = min(ubuf.radiusPx, min(hs.x, hs.y));
     float d = sdRoundBox(qt_TexCoord0 * size - hs, hs, r);
     float a = clamp(0.5 - d, 0.0, 1.0);
-    fragColor = texture(src, qt_TexCoord0) * a * ubuf.qt_Opacity;
+    fragColor = texture(src, ubuf.crop.xy + qt_TexCoord0 * ubuf.crop.zw) * a * ubuf.qt_Opacity;
 }

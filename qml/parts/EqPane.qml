@@ -26,34 +26,16 @@ Column {
 
     spacing: Theme.spaceXl
 
-    Rectangle {
+    PopPill {
         id: picker
-        width: Theme.snap(pickRow.width + 2 * Theme.spaceMd)
         height: Theme.segmentHeight
         radius: Theme.rSm
-        color: pickArea.containsMouse || menu.opened ? Theme.fillRaised : Theme.fillHover
-
-        Row {
-            id: pickRow
-            anchors.centerIn: parent
-            spacing: Theme.spaceXs
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: pane.preset >= 0 ? pane.presets[pane.preset].name : qsTr("Custom")
-                color: Theme.text
-                font.pixelSize: Theme.fsCallout
-                font.weight: Font.Medium
-            }
-            Icon { anchors.verticalCenter: parent.verticalCenter; name: "down"; size: Theme.iconSm; color: Theme.text2 }
-        }
-
-        MouseArea {
-            id: pickArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: menu.toggle(picker, 0, picker.height + Theme.spaceXs)
-        }
+        rest: Theme.fillHover
+        hover: Theme.fillRaised
+        text: pane.preset >= 0 ? pane.presets[pane.preset].name : qsTr("Custom")
+        tail: "down"
+        font.weight: Font.Medium
+        onClicked: menu.toggle(picker, 0, picker.height + Theme.spaceXs)
     }
 
     RiffMenu {

@@ -1,11 +1,15 @@
 use std::error::Error as _;
 use std::io::{self, ErrorKind};
 use std::sync::{Arc, Mutex, RwLock};
+use std::time::Duration;
 
 use reqwest::header::RETRY_AFTER;
 use reqwest::{ClientBuilder, NoProxy, Response, StatusCode};
 use snellar_core::error::{Code, RetryAfter};
 use snellar_core::journal;
+use snellar_core::sync::{Lock, Share};
+
+use crate::reach::{self, Armed, Reach, Targets, Verdict};
 
 pub fn cause_code(cause: &(dyn std::error::Error + 'static)) -> Option<Code> {
     if cause.is::<rustls::Error>() {
@@ -67,20 +71,39 @@ pub fn net(e: reqwest::Error) -> anyhow::Error {
     anyhow::Error::new(e).context(code)
 }
 
+pub fn coded(e: anyhow::Error, code: Code, after: Option<u64>) -> anyhow::Error {
+    match after {
+        Some(seconds) => e.context(RetryAfter(seconds)).context(code),
+        None => e.context(code),
+    }
+}
+
 pub fn checked(response: Response) -> anyhow::Result<Response> {
     let after = response.headers().get(RETRY_AFTER).and_then(|v| v.to_str().ok()).and_then(|v| v.trim().parse().ok());
     response.error_for_status().map_err(|e| {
         let code = code(&e);
-        let e = anyhow::Error::new(e);
-        match after {
-            Some(seconds) => e.context(RetryAfter(seconds)).context(code),
-            None => e.context(code),
-        }
+        coded(anyhow::Error::new(e), code, after)
     })
+}
+
+pub async fn get(http: &Http, url: &str, params: &[(&str, &str)], headers: &[(&str, &str)], timeout: Duration) -> anyhow::Result<Response> {
+    let url = if params.is_empty() { reqwest::Url::parse(url)? } else { reqwest::Url::parse_with_params(url, params)? };
+    let mut request = http.client().get(url).timeout(timeout);
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+    request.send().await.map_err(net)
+}
+
+pub async fn json<T: serde::de::DeserializeOwned>(response: Response) -> anyhow::Result<T> {
+    checked(response)?.json().await.map_err(net)
 }
 
 pub fn ytdlp_cause(stderr: &str) -> Option<Code> {
     const SAID: &[(&str, Code)] = &[
+        ("confirm your age", Code::YtAgeRestricted),
+        ("age-restricted", Code::YtAgeRestricted),
+        ("inappropriate for some users", Code::YtAgeRestricted),
         ("tunnel connection failed: 407", Code::ProxyAuth),
         ("proxy authentication required", Code::ProxyAuth),
         ("tunnel connection failed", Code::ProxyFailed),
@@ -106,17 +129,24 @@ pub fn ytdlp_cause(stderr: &str) -> Option<Code> {
         ("http error 502", Code::NetServer),
         ("http error 503", Code::NetServer),
         ("http error 504", Code::NetServer),
+        ("in your country", Code::YtRegion),
+        ("private video", Code::YtRemoved),
+        ("this video is private", Code::YtRemoved),
+        ("this video has been removed", Code::YtRemoved),
+        ("no longer available", Code::YtRemoved),
+        ("account associated with this video has been terminated", Code::YtRemoved),
+        // bare: yt-dlp prints this for geo, bot checks and more, so it proves nothing lasting
         ("video unavailable", Code::YtUnavailable),
-        ("private video", Code::YtUnavailable),
-        ("not available in your country", Code::YtUnavailable),
-        ("this video has been removed", Code::YtUnavailable),
     ];
     let stderr = stderr.to_lowercase();
     SAID.iter().find(|(words, _)| stderr.contains(words)).map(|(_, code)| *code)
 }
 
 #[derive(Clone, Default)]
-pub struct Route(Arc<RwLock<(u64, Option<String>)>>);
+pub struct Route {
+    way: Arc<RwLock<(u64, Option<String>)>>,
+    reach: Arc<Reach>,
+}
 
 impl Route {
     pub fn parse(text: &str) -> anyhow::Result<Option<String>> {
@@ -133,14 +163,14 @@ impl Route {
     }
 
     pub fn set(&self, proxy: Option<String>) {
-        let mut state = self.0.write().unwrap();
+        let mut state = self.way.writing();
         if state.1 != proxy {
             *state = (state.0 + 1, proxy);
         }
     }
 
     pub fn proxy(&self) -> Option<String> {
-        self.0.read().unwrap().1.clone()
+        self.way.reading().1.clone()
     }
 
     pub fn in_use(&self) -> bool {
@@ -152,7 +182,7 @@ impl Route {
 
     pub fn blame(&self, code: Code) -> Code {
         if !self.in_use() {
-            return code;
+            return if self.reach.verdict() == Verdict::Blocked && reach::suspicious(code) { Code::NetYoutubeBlocked } else { code };
         }
         match code {
             Code::NetDns | Code::NetOffline | Code::NetConnect => Code::ProxyDown,
@@ -163,7 +193,11 @@ impl Route {
     }
 
     fn current(&self) -> (u64, Option<String>) {
-        self.0.read().unwrap().clone()
+        self.way.reading().clone()
+    }
+
+    pub fn reach(&self) -> &Reach {
+        &self.reach
     }
 }
 
@@ -199,7 +233,7 @@ impl Http {
     }
 
     pub fn client(&self) -> reqwest::Client {
-        let mut held = self.0.client.lock().unwrap();
+        let mut held = self.0.client.locked();
         let Some(shape) = &self.0.shape else { return held.1.clone() };
         let (generation, proxy) = self.0.route.current();
         if generation != held.0 {
@@ -219,254 +253,45 @@ impl From<reqwest::Client> for Http {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::net::SocketAddr;
-    use std::sync::Arc;
-    use std::time::Duration;
-
-    use reqwest::dns::{Name, Resolve, Resolving};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::{TcpListener, TcpStream};
-
-    use super::*;
-
-    fn http() -> reqwest::Client {
-        reqwest::Client::builder().no_proxy().build().unwrap()
+impl Route {
+    pub fn watch(&self, targets: Targets, tell: impl Fn(Option<Code>) + Send + Sync + 'static) {
+        self.reach().arm(targets, code, tell);
     }
 
-    async fn serve_once<F, Fut>(reply: F) -> SocketAddr
-    where
-        F: FnOnce(TcpStream) -> Fut + Send + 'static,
-        Fut: Future<Output = ()> + Send,
-    {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            let (conn, _) = listener.accept().await.unwrap();
-            reply(conn).await;
-        });
-        addr
+    pub fn verdict(&self) -> Verdict {
+        if self.in_use() { Verdict::Online } else { self.reach().verdict() }
     }
 
-    struct NoAnswer;
-
-    impl Resolve for NoAnswer {
-        fn resolve(&self, _: Name) -> Resolving {
-            Box::pin(async { Err(io::Error::other("failed to lookup address information: Name or service not known").into()) })
-        }
-    }
-
-    #[tokio::test]
-    async fn a_failed_lookup_is_dns() {
-        let http = reqwest::Client::builder().no_proxy().dns_resolver(Arc::new(NoAnswer)).build().unwrap();
-        let e = http.get("https://music.youtube.com/").send().await.unwrap_err();
-        assert_eq!(Code::of(&net(e)), Code::NetDns);
-    }
-
-    #[tokio::test]
-    async fn a_refused_or_reset_connection_is_connect() {
-        let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = closed.local_addr().unwrap().port();
-        drop(closed);
-        let refused = http().get(format!("http://127.0.0.1:{port}/")).send().await.unwrap_err();
-        assert_eq!(Code::of(&net(refused)), Code::NetConnect);
-
-        let addr = serve_once(|mut conn| async move {
-            let mut buf = [0u8; 1024];
-            let _ = conn.read(&mut buf).await;
-            conn.set_zero_linger().unwrap();
-        })
-        .await;
-        let reset = http().get(format!("http://{addr}/")).send().await.unwrap_err();
-        assert_eq!(Code::of(&net(reset)), Code::NetConnect);
-    }
-
-    #[tokio::test]
-    async fn a_host_that_does_not_speak_tls_is_tls() {
-        let addr = serve_once(|mut conn| async move {
-            let mut buf = [0u8; 1024];
-            let _ = conn.read(&mut buf).await;
-            conn.write_all(b"HTTP/1.1 400 Bad Request\r\ncontent-length: 0\r\n\r\n").await.unwrap();
-        })
-        .await;
-        let e = http().get(format!("https://{addr}/")).send().await.unwrap_err();
-        assert_eq!(Code::of(&net(e)), Code::NetTls);
-    }
-
-    #[tokio::test]
-    async fn a_silent_host_is_a_timeout() {
-        let silent = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let url = format!("http://{}/", silent.local_addr().unwrap());
-        let held = tokio::spawn(async move {
-            let (_conn, _) = silent.accept().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        });
-        let slow = http().get(url).timeout(Duration::from_millis(200)).send().await.unwrap_err();
-        assert_eq!(Code::of(&net(slow).context("YouTube Music search request failed")), Code::NetTimeout);
-        held.abort();
-    }
-
-    #[tokio::test]
-    async fn status_codes_map_to_blocked_refused_limited_and_server() {
-        let cases =
-            [(403, Code::NetBlocked), (451, Code::NetBlocked), (404, Code::NetRefused), (429, Code::NetLimited), (503, Code::NetServer)];
-        for (status, want) in cases {
-            let addr = serve_once(move |mut conn| async move {
-                let mut buf = [0u8; 1024];
-                let _ = conn.read(&mut buf).await;
-                let reply = format!("HTTP/1.1 {status} X\r\ncontent-length: 0\r\nconnection: close\r\n\r\n");
-                conn.write_all(reply.as_bytes()).await.unwrap();
-            })
-            .await;
-            let resp = http().get(format!("http://{addr}/")).send().await.unwrap();
-            let e = resp.error_for_status().unwrap_err();
-            assert_eq!(Code::of(&net(e)), want, "status {status}");
-        }
-    }
-
-    async fn named_server(name: &'static str) -> (SocketAddr, Arc<Mutex<Vec<String>>>) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let log = seen.clone();
-        tokio::spawn(async move {
-            while let Ok((mut conn, _)) = listener.accept().await {
-                let mut buf = [0u8; 2048];
-                let n = conn.read(&mut buf).await.unwrap_or(0);
-                let head = String::from_utf8_lossy(&buf[..n]);
-                log.lock().unwrap().push(head.lines().next().unwrap_or_default().to_string());
-                let reply = format!("HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{name}", name.len());
-                conn.write_all(reply.as_bytes()).await.ok();
-            }
-        });
-        (addr, seen)
-    }
-
-    async fn answer(http: &Http, url: &str) -> String {
-        http.client().get(url).send().await.unwrap().text().await.unwrap()
-    }
-
-    #[tokio::test]
-    async fn a_proxy_change_applies_to_the_next_request_and_loopback_stays_direct() {
-        let (site, _) = named_server("site").await;
-        let (first, first_seen) = named_server("first").await;
-        let (second, _) = named_server("second").await;
-        let route = Route::default();
-        let http = Http::new(&route, move |b| b.no_proxy().resolve("music.test", site));
-        let page = format!("http://music.test:{}/x", site.port());
-        assert_eq!(answer(&http, &page).await, "site");
-
-        route.set(Route::parse(&format!("127.0.0.1:{}", first.port())).unwrap());
-        assert_eq!(answer(&http, &page).await, "first");
-        assert_eq!(first_seen.lock().unwrap().as_slice(), [format!("GET {page} HTTP/1.1")]);
-        assert_eq!(answer(&http, &format!("http://{site}/")).await, "site", "loopback never goes through the proxy");
-
-        route.set(Some(format!("http://{second}")));
-        assert_eq!(answer(&http, &page).await, "second");
-        route.set(None);
-        assert_eq!(answer(&http, &page).await, "site");
-        assert_eq!(route.proxy(), None);
-    }
-
-    async fn proxy_answering(reply: &'static str) -> (Route, Http) {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move {
-            while let Ok((mut conn, _)) = listener.accept().await {
-                let mut buf = [0u8; 2048];
-                let _ = conn.read(&mut buf).await;
-                conn.write_all(reply.as_bytes()).await.ok();
-            }
-        });
-        let route = Route::default();
-        route.set(Some(format!("http://{addr}")));
-        let http = Http::new(&route, |b| b.no_proxy());
-        (route, http)
-    }
-
-    #[tokio::test]
-    async fn a_proxy_that_wants_a_login_or_answers_badly_is_named() {
-        let cases = [
-            ("HTTP/1.1 407 Proxy Authentication Required\r\ncontent-length: 0\r\n\r\n", Code::ProxyAuth),
-            ("HTTP/1.1 502 Bad Gateway\r\ncontent-length: 0\r\n\r\n", Code::ProxyFailed),
-        ];
-        for (reply, want) in cases {
-            let (_, http) = proxy_answering(reply).await;
-            let e = http.client().get("https://music.youtube.com/").send().await.unwrap_err();
-            assert_eq!(Code::of(&net(e)), want, "{reply}");
-        }
-    }
-
-    #[tokio::test]
-    async fn a_dead_proxy_is_the_proxy_not_a_firewall() {
-        let closed = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = closed.local_addr().unwrap().port();
-        drop(closed);
-        let route = Route::default();
-        route.set(Some(format!("http://127.0.0.1:{port}")));
-        let http = Http::new(&route, |b| b.no_proxy());
-        let e = http.client().get("https://music.youtube.com/").send().await.unwrap_err();
-        assert_eq!(route.blame(Code::of(&net(e))), Code::ProxyDown);
-    }
-
-    #[test]
-    fn without_a_proxy_nothing_is_blamed_on_one() {
-        let route = Route::default();
-        if route.in_use() {
+    // After a request failed in a way that may mean YouTube is out of reach, look once (not more
+    // often than every 10 s) before the failure is named, so the reply and the banner agree.
+    pub async fn settle(&self, code: Code) {
+        let Some(armed) = self.reach().armed() else { return };
+        if !reach::suspicious(code) || self.in_use() {
             return;
         }
-        for code in [Code::NetDns, Code::NetConnect, Code::NetTimeout, Code::NetBlocked] {
-            assert_eq!(route.blame(code), code);
+        let _flight = self.reach().flight.lock().await;
+        if self.reach().fresh() {
+            return;
         }
-        route.set(Some("http://127.0.0.1:3128".into()));
-        assert_eq!(route.blame(Code::NetBlocked), Code::ProxyBlocked);
-        assert_eq!(route.blame(Code::NetTimeout), Code::ProxyTimeout);
-        assert_eq!(route.blame(Code::NetDns), Code::ProxyDown);
-        assert_eq!(route.blame(Code::NetLimited), Code::NetLimited);
-    }
-
-    #[tokio::test]
-    async fn the_waiting_time_of_a_refusal_is_kept() {
-        let addr = serve_once(|mut conn| async move {
-            let mut buf = [0u8; 1024];
-            let _ = conn.read(&mut buf).await;
-            conn.write_all(b"HTTP/1.1 429 X\r\nretry-after: 42\r\ncontent-length: 0\r\nconnection: close\r\n\r\n").await.unwrap();
-        })
-        .await;
-        let resp = http().get(format!("http://{addr}/")).send().await.unwrap();
-        let e = checked(resp).unwrap_err().context("search was rejected");
-        assert_eq!(Code::of(&e), Code::NetLimited);
-        assert_eq!(Code::retry_after(&e), Some(42));
-    }
-
-    #[test]
-    fn what_ytdlp_prints_names_the_real_cause() {
-        let cases = [
-            (
-                "ERROR: [youtube] x: Unable to download API page: <urlopen error [Errno -3] Temporary failure in name resolution>",
-                Some(Code::NetDns),
-            ),
-            ("ERROR: [youtube] x: Unable to download API page: HTTP Error 403: Forbidden", Some(Code::NetBlocked)),
-            ("ERROR: unable to download video data: HTTP Error 429: Too Many Requests", Some(Code::NetLimited)),
-            ("ERROR: [youtube] x: Video unavailable", Some(Code::YtUnavailable)),
-            ("ERROR: Tunnel connection failed: 407 Proxy Authentication Required", Some(Code::ProxyAuth)),
-            ("ERROR: Tunnel connection failed: 502 Bad Gateway", Some(Code::ProxyFailed)),
-            ("ERROR: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed>", Some(Code::NetTls)),
-            ("ERROR: something odd", None),
-        ];
-        for (said, want) in cases {
-            assert_eq!(ytdlp_cause(said), want, "{said}");
+        let seen = Reach::look(&armed, true).await;
+        if self.reach().record(seen, &armed) {
+            self.poll(armed);
         }
     }
 
-    #[test]
-    fn proxy_addresses_are_checked() {
-        assert_eq!(Route::parse("  ").unwrap(), None);
-        assert_eq!(Route::parse("proxy.lan:3128").unwrap().as_deref(), Some("http://proxy.lan:3128"));
-        assert_eq!(Route::parse("https://u:p@proxy.lan:443").unwrap().as_deref(), Some("https://u:p@proxy.lan:443"));
-        for bad in ["socks5://proxy.lan:1080", "http://", "not a url at all"] {
-            assert_eq!(Code::of(&Route::parse(bad).unwrap_err()), Code::ProxyInvalid, "{bad}");
-        }
+    fn poll(&self, armed: Arc<Armed>) {
+        let route = self.clone();
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(armed.every()).await;
+                let reach = route.reach();
+                let _flight = reach.flight.lock().await;
+                let seen = if route.in_use() { Verdict::Online } else { Reach::look(&armed, reach.verdict() != Verdict::Blocked).await };
+                reach.record(seen, &armed);
+                if seen == Verdict::Online {
+                    return;
+                }
+            }
+        });
     }
 }

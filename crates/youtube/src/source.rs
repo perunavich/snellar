@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -48,7 +49,10 @@ impl Source for YouTube {
             if fresh {
                 self.resolver.invalidate(video);
             }
-            self.resolver.resolve_with_ua(video).await?;
+            if let Err(e) = self.resolver.resolve_with_ua(video).await {
+                self.resolver.route().settle(Code::of(&e)).await;
+                return Err(e);
+            }
             Ok(Stream { url: self.proxy.url(video), format: self.resolver.format(video) })
         })
     }
@@ -63,11 +67,15 @@ impl Source for YouTube {
         }
     }
 
+    fn lengths<'a>(&'a self, ids: &'a [TrackId]) -> BoxFuture<'a, Result<HashMap<TrackId, f64>>> {
+        Box::pin(self.ytm.lengths(ids))
+    }
+
     fn radio<'a>(&'a self, seed: &'a Track, recent: &'a [Track]) -> BoxFuture<'a, Result<Vec<Track>>> {
         Box::pin(async move {
             match self.recs.next_tracks(seed, recent, RADIO_SIZE).await {
                 Ok(tracks) if !tracks.is_empty() => Ok(tracks),
-                _ => self.ytm.radio(&seed.id).await,
+                _ => self.recs.plain_radio(seed).await,
             }
         })
     }

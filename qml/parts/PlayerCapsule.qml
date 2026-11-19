@@ -7,9 +7,10 @@ Item {
     readonly property Item soundButton: sound
     readonly property bool failed: !!Api.failure && !!track && Api.failure.id === track.id && !Api.loading
 
+    readonly property real radius: shell.radius
     implicitHeight: Theme.capsuleHeight
 
-    Glass { anchors.fill: parent; radius: height / 2 }
+    Glass { id: shell; anchors.fill: parent }
 
     Item {
         id: left
@@ -25,10 +26,10 @@ Item {
             width: Theme.capsuleArt
             height: Theme.capsuleArt
             radius: Theme.rArtM
-            px: 112
+            px: Theme.coverCapsulePx
+            standIn: true
             url: capsule.track ? capsule.track.thumb : ""
-            Tap { enabled: !!capsule.track; onTapped: Nav.nowPlaying = true }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
+            Tap { enabled: !!capsule.track; gesturePolicy: TapHandler.DragThreshold; onTapped: Nav.nowPlaying = true }
         }
 
         Column {
@@ -41,8 +42,7 @@ Item {
                 font.pixelSize: Theme.fsHeadline
                 font.weight: Font.DemiBold
 
-                Tap { enabled: Api.albumOf(capsule.track).length > 0; onTapped: Nav.album(Api.albumOf(capsule.track)) }
-                HoverHandler { enabled: Api.albumOf(capsule.track).length > 0; cursorShape: Qt.PointingHandCursor }
+                AlbumLink { track: capsule.track; gesturePolicy: TapHandler.DragThreshold }
             }
             ArtistLinks { width: parent.width; visible: !capsule.failed; artists: capsule.track ? capsule.track.artists : [] }
             Row {
@@ -71,24 +71,25 @@ Item {
             }
         }
 
-        IconButton {
+        LikeButton {
             id: like
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-            visible: !!capsule.track
-            icon: Api.liked ? "heartFill" : "heart"
-            tip: Api.liked ? qsTr("Unlike") : qsTr("Like")
             size: Theme.controlSm
             iconSize: Theme.iconSm
-            active: Api.liked
-            onClicked: Api.like(capsule.track)
         }
     }
 
-    TransportControls { anchors.centerIn: parent; scale: 0.8 }
+    TransportControls {
+        compact: true
+        x: Math.round((parent.width - width) / 2)
+        y: seek.y - height
+    }
 
     SeekBar {
-        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: Theme.spaceXs }
-        width: Math.max(0, Math.min(Theme.capsuleCenter, 2 * (Math.min(capsule.width / 2 - left.x - left.width, right.x - capsule.width / 2) - Theme.spaceMd)))
+        id: seek
+        x: Math.round((parent.width - width) / 2)
+        anchors { bottom: parent.bottom; bottomMargin: Theme.spaceXs }
+        width: Math.floor(Math.max(0, Math.min(Theme.capsuleCenter, 2 * (Math.min(capsule.width / 2 - left.x - left.width, right.x - capsule.width / 2) - Theme.spaceMd))))
     }
 
     Row {
@@ -99,7 +100,7 @@ Item {
         QuickAdd { }
         IconButton { icon: "queue"; tip: qsTr("Queue"); onClicked: { Nav.tab = "next"; Nav.nowPlaying = true } }
         IconButton { icon: "lyrics"; tip: qsTr("Lyrics"); onClicked: { Nav.tab = "lyrics"; Nav.nowPlaying = true } }
-        IconButton { id: sound; icon: "sliders"; tip: qsTr("Sound"); active: Nav.audio; onClicked: Nav.audio = !Nav.audio }
+        SoundButton { id: sound }
         VolumeControl {
             anchors.verticalCenter: parent.verticalCenter
             showBar: capsule.width >= Theme.capsuleWide

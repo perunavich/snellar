@@ -7,6 +7,8 @@ pub mod library;
 pub mod model;
 pub mod product;
 pub mod settings;
+pub mod signals;
 pub mod source;
+pub mod sync;
 pub mod tasks;
 pub mod ui;

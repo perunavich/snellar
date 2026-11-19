@@ -1,3 +1,4 @@
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::future::Future;
 use std::time::Duration;
 
@@ -11,7 +12,7 @@ use snellar_core::error::Code;
 use snellar_core::model::{LyricLine, Lyrics, Track};
 use snellar_core::product::USER_AGENT;
 
-use crate::net::{Http, net};
+use crate::net::{self, Http};
 use crate::ytm::Ytm;
 
 const NOISE: [&str; 14] =
@@ -19,6 +20,9 @@ const NOISE: [&str; 14] =
 const TIMEOUT: Duration = Duration::from_secs(6);
 const BROWSER_UA: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
 const TAIL_NOISE: [&str; 7] = ["remaster", "live", "version", "mono", "stereo", "edit", "single"];
+const COMPARABLE_PAIRS: usize = 8;
+const SHARED_PAIRS: f64 = 0.3;
+const MAIN_SCRIPT: f64 = 0.2;
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
@@ -96,20 +100,20 @@ fn verdict(track: &Track, e: &Entry) -> Option<Outcome> {
         return None;
     }
     if e.instrumental {
-        return Some(Outcome::Instrumental);
+        return Some(Outcome::Instrumental(Vec::new()));
     }
-    lyrics_of(e).map(Outcome::Found)
+    lyrics_of(e).map(|l| Outcome::Found(vec![l]))
 }
 
 enum Outcome {
-    Found(Lyrics),
-    Instrumental,
+    Found(Vec<Lyrics>),
+    Instrumental(Vec<Lyrics>),
     Missing,
 }
 
 impl From<Option<Lyrics>> for Outcome {
     fn from(found: Option<Lyrics>) -> Outcome {
-        found.map_or(Outcome::Missing, Outcome::Found)
+        found.map_or(Outcome::Missing, |l| Outcome::Found(vec![l]))
     }
 }
 
@@ -148,7 +152,7 @@ pub(crate) fn clean_title(title: &str) -> String {
     {
         t = head.into();
     }
-    let lower = t.to_lowercase();
+    let lower = t.to_ascii_lowercase();
     if let Some(i) = [" feat.", " feat ", " ft.", " ft ", " featuring "].iter().filter_map(|m| lower.find(m)).min() {
         t.truncate(i);
     }
@@ -181,18 +185,18 @@ fn parse_lrc(lrc: &str) -> Vec<LyricLine> {
 fn synced_from(lrc: &str, source: &str) -> Option<Lyrics> {
     let lines = credits_removed(parse_lrc(lrc));
     if !lines.is_empty() {
-        return Some(Lyrics { synced: true, lines, plain: String::new(), source: source.into() });
+        return Some(Lyrics::timed(lines, source));
     }
-    let plain = lrc.trim();
-    (!plain.is_empty()).then(|| Lyrics { synced: false, lines: Vec::new(), plain: plain.into(), source: source.into() })
+    (!lrc.trim().is_empty()).then(|| Lyrics::text(lrc, source))
 }
 
 fn lyrics_of(e: &Entry) -> Option<Lyrics> {
-    if let Some(lines) = e.synced_lyrics.as_deref().map(parse_lrc).filter(|l| !l.is_empty()) {
-        return Some(Lyrics { synced: true, lines, plain: String::new(), source: "lrclib".into() });
+    let synced = e.synced_lyrics.as_deref().map(|lrc| credits_removed(parse_lrc(lrc))).filter(|l| !l.is_empty());
+    if let Some(lines) = synced {
+        return Some(Lyrics::timed(lines, "lrclib"));
     }
     let plain = e.plain_lyrics.as_deref().filter(|p| !p.trim().is_empty())?;
-    Some(Lyrics { synced: false, lines: Vec::new(), plain: plain.trim().into(), source: "lrclib".into() })
+    Some(Lyrics::text(plain, "lrclib"))
 }
 
 impl LyricsSource {
@@ -202,22 +206,12 @@ impl LyricsSource {
     }
 
     async fn get<T: serde::de::DeserializeOwned>(&self, url: &str, params: &[(&str, &str)], user_agent: &str) -> Result<Option<T>> {
-        let url = reqwest::Url::parse_with_params(url, params)?;
-        let resp = self
-            .http
-            .client()
-            .get(url)
-            .header("User-Agent", user_agent)
-            .header("Referer", "https://music.163.com")
-            .timeout(TIMEOUT)
-            .send()
-            .await
-            .map_err(net)
-            .context("lyrics request failed")?;
+        let headers = [("User-Agent", user_agent), ("Referer", "https://music.163.com")];
+        let resp = net::get(&self.http, url, params, &headers, TIMEOUT).await.context("lyrics request failed")?;
         if resp.status() == reqwest::StatusCode::NOT_FOUND {
             return Ok(None);
         }
-        Ok(Some(resp.error_for_status().map_err(net)?.json().await.map_err(net).context("lyrics service returned invalid JSON")?))
+        Ok(Some(net::json(resp).await.context("lyrics service returned invalid JSON")?))
     }
 
     async fn lrclib(&self, track: &Track) -> Result<Outcome> {
@@ -233,40 +227,23 @@ impl LyricsSource {
         if track.duration > 0.0 {
             params.push(("duration", duration.as_str()));
         }
-        let exact = self.get::<Entry>("https://lrclib.net/api/get", &params, USER_AGENT).await;
-        if let Ok(Some(e)) = &exact
-            && let Some(outcome) = verdict(track, e)
-        {
-            return Ok(outcome);
-        }
-
-        let found = self
-            .get::<Vec<Entry>>("https://lrclib.net/api/search", &[("track_name", &title), ("artist_name", &artist)], USER_AGENT)
-            .await
-            .or_else(|e| exact.map(|_| None).map_err(|_| e))?
-            .unwrap_or_default();
-        let candidates: Vec<_> =
-            found.iter().filter(|e| !e.instrumental && confirmed(track, &e.track_name, &[&e.artist_name], e.duration)).collect();
-        let best = candidates.iter().find(|e| e.synced_lyrics.is_some()).or(candidates.first());
-        Ok(best.and_then(|e| lyrics_of(e)).into())
+        let search = [("track_name", title.as_str()), ("artist_name", artist.as_str())];
+        let (exact, searched) = tokio::join!(
+            self.get::<Entry>("https://lrclib.net/api/get", &params, USER_AGENT),
+            self.get::<Vec<Entry>>("https://lrclib.net/api/search", &search, USER_AGENT),
+        );
+        lrclib_outcome(track, exact, searched)
     }
 
     async fn netease(&self, track: &Track) -> Result<Option<Lyrics>> {
         let query = format!("{} {}", clean_title(&track.title), clean_artist(track));
         let found: Option<Value> =
             self.get("http://music.163.com/api/search/get", &[("s", &query), ("type", "1"), ("limit", "5")], BROWSER_UA).await?;
-        let songs = found.as_ref().and_then(|f| f["result"]["songs"].as_array()).map_or(&[][..], Vec::as_slice);
-        let song = songs.iter().find(|s| {
-            let artists: Vec<&str> = s["artists"].as_array().into_iter().flatten().filter_map(|a| a["name"].as_str()).collect();
-            let seconds = s["duration"].as_f64().unwrap_or(0.0) / 1000.0;
-            confirmed(track, s["name"].as_str().unwrap_or(""), &artists, seconds)
-        });
-        let Some(id) = song.and_then(|s| s["id"].as_u64()) else { return Ok(None) };
+        let Some(id) = found.as_ref().and_then(|f| netease_song(track, f)) else { return Ok(None) };
         let lyric: Option<Value> = self
             .get("http://music.163.com/api/song/lyric", &[("id", &id.to_string()), ("lv", "1"), ("kv", "1"), ("tv", "-1")], BROWSER_UA)
             .await?;
-        let Some(lrc) = lyric.as_ref().and_then(|l| l["lrc"]["lyric"].as_str()) else { return Ok(None) };
-        Ok(synced_from(lrc, "netease"))
+        Ok(lyric.as_ref().and_then(netease_lyrics))
     }
 
     async fn kugou(&self, track: &Track) -> Result<Option<Lyrics>> {
@@ -301,7 +278,7 @@ impl LyricsSource {
 
     async fn youtube(&self, track: &Track) -> Result<Option<Lyrics>> {
         let plain = self.ytm.lyrics(&track.id).await?;
-        Ok(plain.map(|p| Lyrics { synced: false, lines: Vec::new(), plain: p.trim().into(), source: "youtube music".into() }))
+        Ok(plain.as_deref().map(youtube_lyrics))
     }
 
     pub async fn fetch(&self, track: &Track) -> Result<Option<Lyrics>> {
@@ -311,247 +288,202 @@ impl LyricsSource {
             limited(async { Ok(self.kugou(track).await?.into()) }),
             limited(async { Ok(self.youtube(track).await?.into()) }),
         );
-        let results = [lrclib, netease, kugou, youtube];
-        if results.iter().any(|r| matches!(r, Ok(Outcome::Instrumental))) {
-            return Ok(None);
-        }
-        let found: Vec<&Lyrics> = results.iter().filter_map(|r| if let Ok(Outcome::Found(l)) = r { Some(l) } else { None }).collect();
-        if let Some(best) = found.iter().find(|l| l.synced).or(found.first()) {
-            return Ok(Some((*best).clone()));
-        }
-        if results.iter().all(Result::is_err) {
-            return results.into_iter().next().map_or(Ok(None), |r| r.map(|_| None));
-        }
-        Ok(None)
+        choose([lrclib, netease, kugou, youtube])
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use snellar_core::model::Ref;
+fn youtube_lyrics(plain: &str) -> Lyrics {
+    Lyrics::text(plain, "youtube music")
+}
 
-    use super::*;
+fn netease_song(track: &Track, found: &Value) -> Option<u64> {
+    let songs = found["result"]["songs"].as_array().map_or(&[][..], Vec::as_slice);
+    let song = songs.iter().find(|s| {
+        let artists: Vec<&str> = s["artists"].as_array().into_iter().flatten().filter_map(|a| a["name"].as_str()).collect();
+        let seconds = s["duration"].as_f64().unwrap_or(0.0) / 1000.0;
+        confirmed(track, s["name"].as_str().unwrap_or(""), &artists, seconds)
+    });
+    song.and_then(|s| s["id"].as_u64())
+}
 
-    fn track(title: &str, artist: &str, album: &str, duration: f64) -> Track {
-        Track {
-            title: title.into(),
-            artists: vec![Ref { id: String::new(), name: artist.into() }],
-            album: Some(Ref { id: String::new(), name: album.into() }),
-            duration,
-            ..Default::default()
+fn netease_lyrics(lyric: &Value) -> Option<Lyrics> {
+    synced_from(lyric["lrc"]["lyric"].as_str()?, "netease")
+}
+
+fn lrclib_outcome(track: &Track, exact: Result<Option<Entry>>, searched: Result<Option<Vec<Entry>>>) -> Result<Outcome> {
+    let mut found = Vec::new();
+    let mut instrumental = false;
+    if let Ok(Some(e)) = &exact
+        && let Some(outcome) = verdict(track, e)
+    {
+        match outcome {
+            Outcome::Found(lyrics) => found.extend(lyrics),
+            Outcome::Instrumental(_) => instrumental = true,
+            Outcome::Missing => {}
         }
     }
+    let searched = match searched {
+        Ok(list) => list.unwrap_or_default(),
+        Err(e) if exact.is_err() => return Err(e),
+        Err(_) => Vec::new(),
+    };
+    let mut candidates: Vec<&Entry> =
+        searched.iter().filter(|e| !e.instrumental && confirmed(track, &e.track_name, &[&e.artist_name], e.duration)).collect();
+    candidates.sort_by_key(|e| e.synced_lyrics.is_none());
+    found.extend(candidates.into_iter().filter_map(lyrics_of));
+    Ok(match (instrumental, found.is_empty()) {
+        (true, _) => Outcome::Instrumental(found),
+        (false, true) => Outcome::Missing,
+        (false, false) => Outcome::Found(found),
+    })
+}
 
-    #[test]
-    fn titles() {
-        assert_eq!(clean_title("Hello (Official Video) [HD]"), "Hello");
-        assert_eq!(clean_title("Song feat. Someone"), "Song");
-        assert_eq!(clean_title("Song - Remastered 2011"), "Song");
-        assert_eq!(clean_title("Song (Part 2)"), "Song (Part 2)");
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Script {
+    Latin,
+    Greek,
+    Cyrillic,
+    Hebrew,
+    Arabic,
+    Devanagari,
+    Thai,
+    Hangul,
+    Han,
+    Other,
+}
 
-    #[test]
-    fn strict() {
-        let t = track("Gangnam Style (강남스타일)", "PSY", "", 219.0);
-        assert!(strict_match(&t, "강남스타일", &["PSY"]));
-        assert!(strict_match(&t, "Gangnam Style", &["Psy"]));
-        assert!(!strict_match(&t, "Gangnam Style", &["Other"]));
-        assert!(!strict_match(&t, "Gangnam Style (Remix)", &["Other"]));
-        let remix = track("Song (Remix)", "A", "", 100.0);
-        assert!(!strict_match(&remix, "Other (Remix)", &["A"]));
-        assert!(strict_match(&track("Hello", "A", "", 0.0), "Hello", &["A、C"]));
-    }
-
-    #[test]
-    fn generic_titles_are_detected() {
-        assert!(is_generic("Intro") && is_generic("Outro (Live)") && is_generic("Track 07") && is_generic("Interlude"));
-        assert!(!is_generic("Introduction") && !is_generic("Track Star"));
-    }
-
-    #[test]
-    fn intro_needs_artist_and_duration() {
-        let xx = track("Intro", "The xx", "xx", 128.0);
-        assert!(confirmed(&xx, "Intro", &["The xx"], 127.0));
-        assert!(!confirmed(&xx, "Intro", &["M83"], 128.0));
-        assert!(!confirmed(&xx, "Intro", &["The xx"], 131.0));
-        assert!(!confirmed(&xx, "Intro", &["The xx"], 0.0));
-        assert!(!confirmed(&track("Intro", "The xx", "xx", 0.0), "Intro", &["The xx"], 128.0));
-        assert!(!confirmed(&xx, "Intro", &[""], 128.0));
-    }
-
-    #[test]
-    fn ordinary_titles_tolerate_missing_duration() {
-        let islands = track("Islands", "The xx", "xx", 161.0);
-        assert!(confirmed(&islands, "Islands", &["The xx"], 164.0));
-        assert!(confirmed(&islands, "Islands", &["The xx"], 0.0));
-        assert!(!confirmed(&islands, "Islands", &["The xx"], 170.0));
-        assert!(!confirmed(&islands, "Islands", &["Other"], 161.0));
-    }
-
-    fn entry(title: &str, artist: &str, duration: f64) -> Entry {
-        Entry {
-            track_name: title.into(),
-            artist_name: artist.into(),
-            duration,
-            plain_lyrics: Some("someone else's words".into()),
-            ..Default::default()
+fn script(c: char) -> Script {
+    match c {
+        'a'..='z' | 'A'..='Z' | '\u{00C0}'..='\u{024F}' | '\u{1E00}'..='\u{1EFF}' => Script::Latin,
+        '\u{0370}'..='\u{03FF}' => Script::Greek,
+        '\u{0400}'..='\u{052F}' => Script::Cyrillic,
+        '\u{0590}'..='\u{05FF}' => Script::Hebrew,
+        '\u{0600}'..='\u{06FF}' | '\u{0750}'..='\u{077F}' => Script::Arabic,
+        '\u{0900}'..='\u{097F}' => Script::Devanagari,
+        '\u{0E00}'..='\u{0E7F}' => Script::Thai,
+        '\u{1100}'..='\u{11FF}' | '\u{3130}'..='\u{318F}' | '\u{AC00}'..='\u{D7AF}' => Script::Hangul,
+        '\u{3040}'..='\u{30FF}' | '\u{31F0}'..='\u{31FF}' | '\u{3400}'..='\u{4DBF}' | '\u{4E00}'..='\u{9FFF}' | '\u{F900}'..='\u{FAFF}' => {
+            Script::Han
         }
+        _ => Script::Other,
     }
+}
 
-    #[test]
-    fn intro_lyrics_of_another_artist_are_not_shown() {
-        let xx = track("Intro", "The xx", "xx", 128.0);
-        assert!(verdict(&xx, &entry("Intro", "Some Other Band", 128.0)).is_none());
-        assert!(verdict(&xx, &entry("Intro", "The xx", 214.0)).is_none());
-        assert!(verdict(&xx, &entry("Intro", "The xx", 0.0)).is_none());
-        let right = verdict(&xx, &entry("Intro", "The xx", 128.0));
-        assert!(matches!(right, Some(Outcome::Found(l)) if l.plain == "someone else's words"));
-    }
+fn unspaced(c: char) -> bool {
+    matches!(script(c), Script::Han | Script::Thai)
+}
 
-    #[test]
-    fn instrumental_flag_counts_only_for_the_confirmed_track() {
-        let xx = track("Intro", "The xx", "xx", 128.0);
-        let instrumental = |artist: &str| Entry { instrumental: true, ..entry("Intro", artist, 128.0) };
-        assert!(matches!(verdict(&xx, &instrumental("The xx")), Some(Outcome::Instrumental)));
-        assert!(verdict(&xx, &instrumental("Another")).is_none());
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Judged {
+    Same,
+    OtherScript,
+    TooShort,
+    Differ,
+}
 
-    #[test]
-    fn kugou_header_line_is_dropped() {
-        let lines = credits_removed(vec![
-            LyricLine { time: 0.0, text: "Islands - The xx".into() },
-            LyricLine { time: 12.0, text: "I don't have to leave".into() },
-        ]);
-        assert_eq!(lines.len(), 1);
-    }
+struct Text<'a> {
+    lyrics: &'a Lyrics,
+    pairs: HashSet<String>,
+    scripts: BTreeSet<Script>,
+}
 
-    #[test]
-    fn lrc() {
-        let l = parse_lrc("[ar:x]\n[00:01.50]a\n[01:02.00][00:03.00]b\n");
-        assert_eq!(l.len(), 3);
-        assert_eq!(l[0].time, 1.5);
-        assert_eq!(l[1].text, "b");
-        assert_eq!(l[2].time, 62.0);
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_chain() {
-        let http = reqwest::Client::new();
-        let ytm = Ytm::new(http.clone());
-        let src = LyricsSource::new(http);
-        let queries = [
-            "daft punk get lucky",
-            "queen bohemian rhapsody",
-            "kalush stefania",
-            "океан ельзи без бою",
-            "psy gangnam style",
-            "yonezu kenshi lemon",
-            "yoasobi idol",
-            "zzqx nonexistent qqq",
-        ];
-        for q in queries {
-            let Some(t) = ytm.search(q, crate::ytm::Filter::Songs).await.unwrap().tracks.into_iter().next() else { continue };
-            let start = std::time::Instant::now();
-            let r = src.fetch(&t).await;
-            let took = start.elapsed();
-            match r {
-                Ok(Some(l)) => println!(
-                    "{q:<28} {} - {} | {} synced={} lines={} {took:?}",
-                    t.title,
-                    t.artist_line(),
-                    l.source,
-                    l.synced,
-                    l.lines.len()
-                ),
-                Ok(None) => println!("{q:<28} {} - {} | none {took:?}", t.title, t.artist_line()),
-                Err(e) => println!("{q:<28} ERR {e:#} {took:?}"),
+impl<'a> Text<'a> {
+    fn of(lyrics: &'a Lyrics) -> Text<'a> {
+        let lines: Vec<&str> =
+            if lyrics.synced { lyrics.lines.iter().map(|l| l.text.as_str()).collect() } else { lyrics.plain.lines().collect() };
+        let mut pairs = HashSet::new();
+        let mut letters: BTreeMap<Script, usize> = BTreeMap::new();
+        for line in lines {
+            let mut units: Vec<String> = Vec::new();
+            for word in norm(line).split_whitespace() {
+                if word.chars().any(unspaced) {
+                    units.extend(word.chars().map(String::from));
+                } else {
+                    units.push(word.into());
+                }
+            }
+            pairs.extend(units.windows(2).map(|w| w.join(" ")));
+            for c in line.chars().filter(|c| c.is_alphabetic()) {
+                *letters.entry(script(c)).or_default() += 1;
             }
         }
+        let total: usize = letters.values().sum();
+        let scripts = letters.into_iter().filter(|(_, n)| *n as f64 >= MAIN_SCRIPT * total as f64).map(|(s, _)| s).collect();
+        Text { lyrics, pairs, scripts }
     }
 
-    #[tokio::test]
-    #[ignore]
-    async fn live_each_source() {
-        let http = reqwest::Client::new();
-        let ytm = Ytm::new(http.clone());
-        let src = LyricsSource::new(http);
-        for q in ["daft punk get lucky", "kalush stefania", "psy gangnam style", "yoasobi idol"] {
-            let t = ytm.search(q, crate::ytm::Filter::Songs).await.unwrap().tracks.remove(0);
-            let show = |r: Result<Option<Lyrics>>| match r {
-                Ok(Some(l)) => format!("synced={} lines={} plain={}", l.synced, l.lines.len(), l.plain.len()),
-                Ok(None) => "none".into(),
-                Err(e) => format!("err {e:#}"),
-            };
-            println!(
-                "{q}: lrclib[{}] netease[{}] kugou[{}] youtube[{}]",
-                show(src.lrclib(&t).await.map(|o| match o {
-                    Outcome::Found(l) => Some(l),
-                    _ => None,
-                })),
-                show(src.netease(&t).await),
-                show(src.kugou(&t).await),
-                show(src.youtube(&t).await)
-            );
+    fn solid(&self) -> bool {
+        self.pairs.len() >= COMPARABLE_PAIRS
+    }
+
+    fn judge(&self, other: &Text) -> Judged {
+        if !self.solid() || !other.solid() {
+            return Judged::TooShort;
         }
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_intro_shows_no_foreign_lyrics() {
-        let http = reqwest::Client::new();
-        let ytm = Ytm::new(http.clone());
-        let src = LyricsSource::new(http);
-        let found = ytm.search("the xx intro", crate::ytm::Filter::Songs).await.unwrap().tracks;
-        let intro = found.into_iter().find(|t| t.title == "Intro" && t.artist_line().contains("The xx")).expect("The xx - Intro in search");
-        let shown = src.fetch(&intro).await.unwrap();
-        println!("shown: {:?}", shown.as_ref().map(|l| (&l.source, l.lines.first().map(|x| &x.text), l.plain.lines().next())));
-        assert!(shown.is_none(), "The xx - Intro is instrumental, anything shown is another song's text");
-    }
-
-    #[tokio::test]
-    #[ignore]
-    async fn live_short_names() {
-        let http = reqwest::Client::new();
-        let ytm = Ytm::new(http.clone());
-        let src = LyricsSource::new(http);
-        for q in [
-            "the xx intro",
-            "the xx islands",
-            "mo pilgrim",
-            "m83 midnight city",
-            "air playground love",
-            "low in the drugstore",
-            "yes owner of a lonely heart",
-            "m83 intro",
-            "outro m83",
-        ] {
-            let Some(t) = ytm.search(q, crate::ytm::Filter::Songs).await.ok().and_then(|r| r.tracks.into_iter().next()) else { continue };
-            let show = |r: Result<Option<Lyrics>>| match r {
-                Ok(Some(l)) => format!(
-                    "{} lines={} first={:?}",
-                    if l.synced { "synced" } else { "plain" },
-                    l.lines.len(),
-                    l.lines.first().map(|x| x.text.as_str()).or(l.plain.lines().next())
-                ),
-                Ok(None) => "none".into(),
-                Err(e) => format!("err {e:#}"),
-            };
-            println!(
-                "{} - {} ({}s, album {:?})\n   lrclib {}\n   netease {}\n   kugou {}\n   youtube {}",
-                t.title,
-                t.artist_line(),
-                t.duration,
-                t.album.as_ref().map(|a| &a.name),
-                show(src.lrclib(&t).await.map(|o| match o {
-                    Outcome::Found(l) => Some(l),
-                    _ => None,
-                })),
-                show(src.netease(&t).await),
-                show(src.kugou(&t).await),
-                show(src.youtube(&t).await)
-            );
-            println!("   FETCH {}", show(src.fetch(&t).await));
+        if self.scripts != other.scripts {
+            return Judged::OtherScript;
         }
+        let fewer = self.pairs.len().min(other.pairs.len());
+        if self.pairs.intersection(&other.pairs).count() as f64 >= SHARED_PAIRS * fewer as f64 { Judged::Same } else { Judged::Differ }
     }
+}
+
+fn backers(texts: &[Text], pool: &[usize], i: usize) -> usize {
+    let sources: HashSet<&str> =
+        pool.iter().filter(|&&j| j == i || texts[i].judge(&texts[j]) == Judged::Same).map(|&j| texts[j].lyrics.source.as_str()).collect();
+    sources.len()
+}
+
+fn consensus(texts: &[Text], pool: &[usize]) -> Option<usize> {
+    let backing: Vec<usize> = pool.iter().map(|&i| backers(texts, pool, i)).collect();
+    let most = *backing.iter().max()?;
+    let leaders: Vec<usize> = pool.iter().zip(&backing).filter(|(_, b)| **b == most).map(|(&i, _)| i).collect();
+    let contested = leaders.iter().any(|&a| leaders.iter().any(|&b| texts[a].judge(&texts[b]) == Judged::Differ));
+    (!contested).then(|| leaders[0])
+}
+
+fn ranked(texts: &[Text], video: Option<usize>) -> Vec<usize> {
+    let all = 0..texts.len();
+    if let Some(video) = video {
+        let judged = |i: usize| if i == video { Judged::Same } else { texts[i].judge(&texts[video]) };
+        let same: Vec<usize> = all.clone().filter(|&i| judged(i) == Judged::Same).collect();
+        let foreign: Vec<usize> = all.filter(|&i| judged(i) == Judged::OtherScript && texts[i].lyrics.synced).collect();
+        let synced = same.iter().copied().filter(|&i| texts[i].lyrics.synced);
+        let plain = same.iter().copied().filter(|&i| !texts[i].lyrics.synced);
+        return synced.chain(consensus(texts, &foreign)).chain(plain).collect();
+    }
+    let solid: Vec<usize> = all.clone().filter(|&i| texts[i].solid()).collect();
+    let pool = if solid.is_empty() { all.collect() } else { solid };
+    let Some(reference) = consensus(texts, &pool) else { return Vec::new() };
+    let mut fits: Vec<(Judged, usize)> = pool
+        .iter()
+        .map(|&i| (if i == reference { Judged::Same } else { texts[i].judge(&texts[reference]) }, i))
+        .filter(|(judged, _)| *judged != Judged::Differ)
+        .collect();
+    fits.sort_by_key(|&(judged, i)| (judged, !texts[i].lyrics.synced));
+    fits.into_iter().map(|(_, i)| i).collect()
+}
+
+fn choose(results: [Result<Outcome>; 4]) -> Result<Option<Lyrics>> {
+    let texts: Vec<Text> = results
+        .iter()
+        .filter_map(|r| if let Ok(Outcome::Found(l) | Outcome::Instrumental(l)) = r { Some(l) } else { None })
+        .flatten()
+        .map(Text::of)
+        .collect();
+    let own = match &results[3] {
+        Ok(Outcome::Found(l)) => l.first(),
+        _ => None,
+    };
+    let video = texts.iter().position(|t| own.is_some_and(|v| std::ptr::eq(t.lyrics, v)) && t.solid());
+    if video.is_none() && results.iter().any(|r| matches!(r, Ok(Outcome::Instrumental(_)))) {
+        return Ok(own.cloned());
+    }
+    if let Some(&best) = ranked(&texts, video).first() {
+        return Ok(Some(texts[best].lyrics.clone()));
+    }
+    if results.iter().all(Result::is_err) {
+        return results.into_iter().next().map_or(Ok(None), |r| r.map(|_| None));
+    }
+    Ok(None)
 }
